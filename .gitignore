@@ -49,3 +49,6 @@ app.*.map.json
 .agents/
 .playwright-mcp/
 skills-lock.json
+
+# Mockups
+*.png
