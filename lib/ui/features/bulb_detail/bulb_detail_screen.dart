@@ -8,6 +8,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import '../../../data/models/bulb.dart';
 import '../../../data/models/bulb_state.dart';
 import '../../../data/repositories/bulb_repository.dart';
+import '../../../domain/models/bulb_limits.dart';
 import '../../../domain/models/scene.dart';
 import '../../core/bulb_colors.dart';
 import '../../core/preview_box.dart';
@@ -45,9 +46,15 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
       repository: widget.repository,
       bulbId: widget.bulb.id,
     );
-    _brightness = (_viewModel.state.dimming ?? 50).toDouble();
-    _temp = (_viewModel.state.temp ?? 4000).toDouble();
-    _speed = (_viewModel.state.speed ?? 50).toDouble();
+    _brightness = (_viewModel.state.dimming ?? 50)
+        .clamp(BulbLimits.minBrightness, BulbLimits.maxBrightness)
+        .toDouble();
+    _temp = (_viewModel.state.temp ?? 4000)
+        .clamp(widget.bulb.kelvinMin, widget.bulb.kelvinMax)
+        .toDouble();
+    _speed = (_viewModel.state.speed ?? 50)
+        .clamp(BulbLimits.minSpeed, BulbLimits.maxSpeed)
+        .toDouble();
     _color = BulbColors.fromState(_viewModel.state, fallback: Colors.white);
     _viewModel.refreshState();
   }
@@ -68,11 +75,19 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
         final bulb = _viewModel.bulb ?? widget.bulb;
         final state = _viewModel.state;
         final isOn = bulb.isOnline && state.on;
+        final reachable = bulb.isOnline && !_viewModel.controlsDisabled;
+        final controlsEnabled = isOn && !_viewModel.controlsDisabled;
 
         return Scaffold(
           appBar: AppBar(
             title: Text(bulb.displayName),
             actions: [
+              if (_viewModel.controlsDisabled)
+                Icon(
+                  LucideIcons.wifi_off,
+                  size: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               IconButton(
                 icon: Icon(LucideIcons.info),
                 onPressed: () async {
@@ -89,7 +104,7 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
               ),
               Switch(
                 value: isOn,
-                onChanged: bulb.isOnline
+                onChanged: reachable
                     ? (_) {
                         HapticFeedback.lightImpact();
                         _viewModel.toggle();
@@ -100,32 +115,51 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
           ),
           body: _viewModel.isLoading && bulb.state == null
               ? _buildLoadingShimmer(context)
-              : ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  children: [
-                    PreviewBox(
-                      state: state,
-                      isOnline: bulb.isOnline,
-                      commandFailed: _viewModel.commandFailed,
-                      onTap: bulb.isOnline
-                          ? () {
-                              HapticFeedback.lightImpact();
-                              _viewModel.toggle();
-                            }
-                          : null,
-                    ),
-                    const SizedBox(height: 20),
-                    _buildBrightness(context, theme, isOn, state),
-                    const SizedBox(height: 8),
-                    const Divider(),
-                    const SizedBox(height: 8),
-                    _buildModeToggle(context, theme, isOn),
-                    const SizedBox(height: 16),
-                    _buildModeControls(context, theme, isOn, state),
-                  ],
+              : GestureDetector(
+                  onTap: _viewModel.controlsDisabled ? _showNoConnectionToast : null,
+                  behavior: HitTestBehavior.translucent,
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    children: [
+                      PreviewBox(
+                        state: state,
+                        isOnline: bulb.isOnline,
+                        commandFailed: _viewModel.commandFailed,
+                        onTap: reachable
+                            ? () {
+                                HapticFeedback.lightImpact();
+                                _viewModel.toggle();
+                              }
+                            : null,
+                      ),
+                      const SizedBox(height: 20),
+                      if (_viewModel.showBrightness) ...[
+                        _buildBrightness(context, theme, controlsEnabled, state),
+                        const SizedBox(height: 8),
+                        if (_viewModel.showModeToggle) ...[
+                          const Divider(),
+                          const SizedBox(height: 8),
+                        ],
+                      ],
+                      if (_viewModel.showModeToggle) ...[
+                        _buildModeToggle(context, theme, controlsEnabled),
+                        const SizedBox(height: 16),
+                      ],
+                      _buildModeControls(context, theme, controlsEnabled, state),
+                    ],
+                  ),
                 ),
         );
       },
+    );
+  }
+
+  void _showNoConnectionToast() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No connection'),
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 
@@ -166,7 +200,9 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
 
   Widget _buildBrightness(BuildContext context, ThemeData theme, bool isOn, BulbState state) {
     if (!_viewModel.isUserInteracting) {
-      _brightness = (state.dimming ?? 50).toDouble();
+      _brightness = (state.dimming ?? 50)
+          .clamp(BulbLimits.minBrightness, BulbLimits.maxBrightness)
+          .toDouble();
     }
 
     return Column(
@@ -188,9 +224,9 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
         const SizedBox(height: 8),
         Slider(
           value: _brightness,
-          min: 1,
-          max: 100,
-          divisions: 99,
+          min: BulbLimits.minBrightness.toDouble(),
+          max: BulbLimits.maxBrightness.toDouble(),
+          divisions: BulbLimits.maxBrightness - BulbLimits.minBrightness,
           activeColor: theme.colorScheme.primary,
           onChanged: isOn
               ? (v) {
@@ -208,53 +244,60 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
   }
 
   Widget _buildModeToggle(BuildContext context, ThemeData theme, bool isOn) {
-    final modes = [
-      (BulbMode.white, 'White'),
-      (BulbMode.color, 'Color'),
-      (BulbMode.scene, 'Scene'),
-    ];
+    final modeLabels = {
+      BulbMode.white: 'White',
+      BulbMode.color: 'Color',
+      BulbMode.scene: 'Scene',
+    };
+    final modes = _viewModel.availableModes
+        .map((m) => (m, modeLabels[m]!))
+        .toList();
 
-    return Row(
-      children: modes.map((mode) {
-      final isActive = _viewModel.selectedMode == mode.$1;
-      return Expanded(
-        child: Padding(
-          padding: EdgeInsets.only(
-            right: mode != modes.last ? 8 : 0,
-          ),
-          child: GestureDetector(
-            onTap: isOn ? () => _viewModel.setMode(mode.$1) : null,
-            behavior: HitTestBehavior.opaque,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              constraints: const BoxConstraints(minHeight: 48),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? theme.colorScheme.onSurface
-                    : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
+    return Opacity(
+      opacity: isOn ? 1.0 : 0.4,
+      child: Row(
+        children: modes.map((mode) {
+          final isActive = _viewModel.selectedMode == mode.$1;
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: mode != modes.last ? 8 : 0,
               ),
-              child: Center(
-                child: Text(
-                  mode.$2,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
+              child: GestureDetector(
+                onTap: isOn ? () => _viewModel.setMode(mode.$1) : null,
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  constraints: const BoxConstraints(minHeight: 48),
+                  decoration: BoxDecoration(
                     color: isActive
-                        ? theme.colorScheme.surface
-                        : theme.colorScheme.onSurfaceVariant,
+                        ? theme.colorScheme.onSurface
+                        : theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      mode.$2,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: isActive
+                            ? theme.colorScheme.surface
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ),
-      );
-    }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 
   Widget _buildModeControls(BuildContext context, ThemeData theme, bool isOn, BulbState state) {
+    if (_viewModel.availableModes.isEmpty) return const SizedBox.shrink();
     switch (_viewModel.selectedMode) {
       case BulbMode.white:
         return _buildWhiteMode(context, theme, isOn, state);
@@ -267,7 +310,9 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
 
   Widget _buildWhiteMode(BuildContext context, ThemeData theme, bool isOn, BulbState state) {
     if (!_viewModel.isUserInteracting) {
-      _temp = (state.temp ?? 4000).toDouble();
+      _temp = (state.temp ?? 4000)
+          .clamp(widget.bulb.kelvinMin, widget.bulb.kelvinMax)
+          .toDouble();
     }
 
     return Column(
@@ -299,9 +344,9 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
             ),
             Slider(
               value: _temp,
-              min: 2200,
-              max: 6500,
-              divisions: 86,
+              min: widget.bulb.kelvinMin.toDouble(),
+              max: widget.bulb.kelvinMax.toDouble(),
+              divisions: (widget.bulb.kelvinMax - widget.bulb.kelvinMin) ~/ 50,
               activeColor: Colors.transparent,
               inactiveColor: Colors.transparent,
               overlayColor: WidgetStateProperty.all(Colors.black26),
@@ -322,8 +367,8 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('2200K', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            Text('6500K', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            Text('${widget.bulb.kelvinMin}K', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            Text('${widget.bulb.kelvinMax}K', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           ],
         ),
       ],
@@ -353,9 +398,9 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
                   _colorDebounce?.cancel();
                   _colorDebounce = Timer(const Duration(milliseconds: 300), () {
                     _viewModel.setColor(
-                      (color.r * 255).round().clamp(0, 255),
-                      (color.g * 255).round().clamp(0, 255),
-                      (color.b * 255).round().clamp(0, 255),
+                      (color.r * 255).round().clamp(BulbLimits.minChannel, BulbLimits.maxChannel),
+                      (color.g * 255).round().clamp(BulbLimits.minChannel, BulbLimits.maxChannel),
+                      (color.b * 255).round().clamp(BulbLimits.minChannel, BulbLimits.maxChannel),
                     );
                   });
                 },
@@ -385,7 +430,9 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
         : null;
 
     if (!_viewModel.isUserInteracting) {
-      _speed = (state.speed ?? 50).toDouble();
+      _speed = (state.speed ?? 50)
+          .clamp(BulbLimits.minSpeed, BulbLimits.maxSpeed)
+          .toDouble();
     }
 
     return Column(
@@ -396,48 +443,51 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
         InkWell(
           onTap: isOn ? () => _pickScene(context) : null,
           borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                if (scene != null) ...[
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withAlpha(20),
-                      borderRadius: BorderRadius.circular(8),
+          child: Opacity(
+            opacity: isOn ? 1.0 : 0.4,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  if (scene != null) ...[
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withAlpha(20),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(scene.icon, size: 16, color: theme.colorScheme.primary),
                     ),
-                    child: Icon(scene.icon, size: 16, color: theme.colorScheme.primary),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          scene?.name ?? 'No scene',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Tap to browse all scenes',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  Icon(LucideIcons.chevron_right, size: 18, color: theme.colorScheme.onSurfaceVariant),
                 ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        scene?.name ?? 'No scene',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Tap to browse all scenes',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(LucideIcons.chevron_right, size: 18, color: theme.colorScheme.onSurfaceVariant),
-              ],
+              ),
             ),
           ),
         ),
@@ -458,9 +508,9 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
           ),
           Slider(
             value: _speed,
-            min: 0,
-            max: 100,
-            divisions: 100,
+            min: BulbLimits.minSpeed.toDouble(),
+            max: BulbLimits.maxSpeed.toDouble(),
+            divisions: BulbLimits.maxSpeed - BulbLimits.minSpeed,
             activeColor: theme.colorScheme.primary,
             onChanged: isOn
                 ? (v) {
@@ -476,8 +526,8 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('0', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              Text('100', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              Text('${BulbLimits.minSpeed}', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              Text('${BulbLimits.maxSpeed}', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ],
           ),
           Text(
@@ -497,6 +547,8 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
       MaterialPageRoute(
         builder: (_) => ScenePickerScreen(
           currentSceneId: _viewModel.state.sceneId,
+          bulbClass: widget.bulb.bulbClass,
+          repository: widget.repository,
         ),
       ),
     );
