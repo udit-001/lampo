@@ -5,11 +5,9 @@ import 'package:lampo/data/models/bulb.dart';
 import 'package:lampo/data/models/bulb_event.dart';
 import 'package:lampo/data/models/bulb_state.dart';
 import 'package:lampo/data/repositories/bulb_repository.dart';
-import 'package:lampo/data/services/connectivity_service.dart';
 import 'package:lampo/data/services/fake_wiz_protocol.dart';
 
 import '../services/fake_bulb_store.dart';
-import '../services/fake_connectivity_service.dart';
 import '../services/fake_discovery.dart';
 
 Bulb _bulb(String mac, {String ip = '192.168.1.100', bool online = true}) {
@@ -25,15 +23,13 @@ void main() {
   late FakeWizProtocol proto;
   late FakeBulbStore store;
   late FakeDiscovery discovery;
-  late FakeConnectivityService connectivity;
   late BulbRepository repo;
 
   setUp(() {
     proto = FakeWizProtocol();
     store = FakeBulbStore();
     discovery = FakeDiscovery();
-    connectivity = FakeConnectivityService();
-    repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+    repo = BulbRepository(proto: proto, discovery: discovery, store: store);
   });
 
   group('BulbRepository', () {
@@ -41,7 +37,7 @@ void main() {
       discovery = FakeDiscovery(
         discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
 
       await repo.init();
       await repo.scan();
@@ -59,7 +55,7 @@ void main() {
       discovery = FakeDiscovery(
         discoverResult: [_bulb('found-mac', ip: '192.168.1.100')],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
 
       await repo.init();
       await repo.scan();
@@ -83,7 +79,7 @@ void main() {
           ),
         ],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
 
       await repo.init();
       await repo.scan();
@@ -99,7 +95,7 @@ void main() {
       discovery = FakeDiscovery(
         discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
 
       await repo.init();
       await repo.scan();
@@ -112,7 +108,7 @@ void main() {
       discovery = FakeDiscovery(
         discoverResult: [_bulb('mac1')],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
       await repo.init();
 
       expect(repo.isScanning, false);
@@ -134,7 +130,7 @@ void main() {
           ),
         ],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
       await repo.init();
       await repo.scan();
 
@@ -149,7 +145,7 @@ void main() {
       discovery = FakeDiscovery(
         discoverResult: [_bulb('mac1')],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
       await repo.init();
       await repo.scan();
 
@@ -164,7 +160,7 @@ void main() {
       discovery = FakeDiscovery(
         discoverResult: [_bulb('mac1')],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
       await repo.init();
       await repo.scan();
 
@@ -182,7 +178,7 @@ void main() {
       discovery = FakeDiscovery(
         discoverResult: [_bulb('mac1')],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
       repo.addListener(() => callCount++);
 
       await repo.init();
@@ -195,7 +191,7 @@ void main() {
       discovery = FakeDiscovery(
         discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
       await repo.init();
       await repo.scan();
 
@@ -221,7 +217,7 @@ void main() {
       discovery = FakeDiscovery(
         discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
       await repo.init();
       await repo.scan();
 
@@ -247,7 +243,7 @@ void main() {
       discovery = FakeDiscovery(
         discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
       await repo.init();
       await repo.scan();
 
@@ -270,7 +266,7 @@ void main() {
       discovery = FakeDiscovery(
         discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
       await repo.init();
       await repo.scan();
 
@@ -299,7 +295,7 @@ void main() {
       discovery = FakeDiscovery(
         discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
       );
-      repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+      repo = BulbRepository(proto: proto, discovery: discovery, store: store);
       await repo.init();
       await repo.scan();
 
@@ -323,7 +319,6 @@ void main() {
         proto: proto,
         discovery: discovery,
         store: store,
-        connectivity: connectivity,
         backgroundThreshold: Duration.zero,
       );
       await repo.init();
@@ -349,230 +344,4 @@ void main() {
     });
   });
 
-  group('connectivity', () {
-    test('WiFi to cellular pauses polling and updates connectionType', () async {
-      proto.setCannedState('192.168.1.100', const BulbState(on: true));
-      discovery = FakeDiscovery(
-        discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
-      );
-      repo = BulbRepository(
-        proto: proto,
-        discovery: discovery,
-        store: store,
-        connectivity: connectivity,
-        reconnectDelay: Duration.zero,
-      );
-      await repo.init();
-      await repo.scan();
-
-      expect(repo.connectionType, ConnectionType.wifi);
-
-      connectivity.emit(ConnectionType.cellular);
-      await Future.delayed(Duration.zero);
-
-      expect(repo.connectionType, ConnectionType.cellular);
-      expect(discovery.clearCacheCalled, false);
-    });
-
-    test('cellular to WiFi triggers debounced reconnect', () async {
-      proto.setCannedState('192.168.1.100', const BulbState(on: true));
-      discovery = FakeDiscovery(
-        discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
-      );
-      repo = BulbRepository(
-        proto: proto,
-        discovery: discovery,
-        store: store,
-        connectivity: connectivity,
-        reconnectDelay: Duration.zero,
-      );
-      await repo.init();
-      await repo.scan();
-
-      connectivity.emit(ConnectionType.cellular);
-      await Future.delayed(Duration.zero);
-
-      proto.setCannedState('192.168.1.100', const BulbState(on: false));
-
-      connectivity.emit(ConnectionType.wifi);
-      await Future.delayed(const Duration(milliseconds: 10));
-
-      expect(discovery.clearCacheCalled, true);
-      expect(repo.isReconnecting, false);
-      expect(repo.bulbs.first.state!.on, false);
-    });
-
-    test('rapid network flapping triggers only one reconnect', () async {
-      proto.setCannedState('192.168.1.100', const BulbState(on: true));
-      discovery = FakeDiscovery(
-        discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
-      );
-      repo = BulbRepository(
-        proto: proto,
-        discovery: discovery,
-        store: store,
-        connectivity: connectivity,
-        reconnectDelay: const Duration(milliseconds: 100),
-      );
-      await repo.init();
-      await repo.scan();
-
-      connectivity.emit(ConnectionType.cellular);
-      await Future.delayed(Duration.zero);
-      connectivity.emit(ConnectionType.wifi);
-      await Future.delayed(Duration.zero);
-      connectivity.emit(ConnectionType.cellular);
-      await Future.delayed(Duration.zero);
-      connectivity.emit(ConnectionType.wifi);
-
-      await Future.delayed(const Duration(milliseconds: 150));
-
-      expect(discovery.clearCacheCalled, true);
-      expect(discovery.clearCacheCallCount, 1);
-    });
-
-    test('WiFi to WiFi transition triggers reconnect', () async {
-      proto.setCannedState('192.168.1.100', const BulbState(on: true));
-      discovery = FakeDiscovery(
-        discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
-      );
-      repo = BulbRepository(
-        proto: proto,
-        discovery: discovery,
-        store: store,
-        connectivity: connectivity,
-        reconnectDelay: Duration.zero,
-      );
-      await repo.init();
-      await repo.scan();
-
-      connectivity.emit(ConnectionType.wifi);
-      await Future.delayed(const Duration(milliseconds: 10));
-
-      expect(discovery.clearCacheCalled, true);
-      expect(repo.isReconnecting, false);
-    });
-
-    test('isReconnecting transitions correctly during connectivity reconnect', () async {
-      proto.setCannedState('192.168.1.100', const BulbState(on: true));
-      discovery = FakeDiscovery(
-        discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
-      );
-      repo = BulbRepository(
-        proto: proto,
-        discovery: discovery,
-        store: store,
-        connectivity: connectivity,
-        reconnectDelay: Duration.zero,
-      );
-      await repo.init();
-      await repo.scan();
-
-      bool wasReconnecting = false;
-      repo.addListener(() {
-        if (repo.isReconnecting) wasReconnecting = true;
-      });
-
-      connectivity.emit(ConnectionType.cellular);
-      await Future.delayed(Duration.zero);
-
-      connectivity.emit(ConnectionType.wifi);
-      await Future.delayed(const Duration(milliseconds: 10));
-
-      expect(wasReconnecting, true);
-      expect(repo.isReconnecting, false);
-    });
-  });
-
-  group('pull-to-refresh', () {
-    test('refreshAll re-polls all bulbs and updates states', () async {
-      proto.setCannedState('192.168.1.100', const BulbState(on: true, dimming: 80));
-      discovery = FakeDiscovery(
-        discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
-      );
-      repo = BulbRepository(
-        proto: proto,
-        discovery: discovery,
-        store: store,
-        connectivity: connectivity,
-      );
-      await repo.init();
-      await repo.scan();
-
-      expect(repo.bulbs.first.state!.on, true);
-      expect(repo.bulbs.first.state!.dimming, 80);
-
-      proto.setCannedState('192.168.1.100', const BulbState(on: false, dimming: 50));
-
-      await repo.refreshAll();
-
-      expect(repo.bulbs.first.state!.on, false);
-      expect(repo.bulbs.first.state!.dimming, 50);
-    });
-
-    test('refreshAll brings offline bulbs back online', () async {
-      proto.setCannedState('192.168.1.100', const BulbState(on: true));
-      proto.setCannedState('192.168.1.50', const BulbState(on: false, dimming: 30));
-      store.saveAll([_bulb('saved-mac', ip: '192.168.1.50', online: false)]);
-      discovery = FakeDiscovery(
-        discoverResult: [_bulb('found-mac', ip: '192.168.1.100')],
-      );
-      repo = BulbRepository(
-        proto: proto,
-        discovery: discovery,
-        store: store,
-        connectivity: connectivity,
-      );
-      await repo.init();
-      await repo.scan();
-
-      final savedBulb = repo.bulbs.firstWhere((b) => b.mac == 'saved-mac');
-      expect(savedBulb.isOnline, false);
-
-      await repo.refreshAll();
-
-      final refreshed = repo.bulbs.firstWhere((b) => b.mac == 'saved-mac');
-      expect(refreshed.isOnline, true);
-      expect(refreshed.state!.dimming, 30);
-    });
-
-    test('refreshAll does not trigger scan', () async {
-      proto.setCannedState('192.168.1.100', const BulbState(on: true));
-      discovery = FakeDiscovery(
-        discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
-      );
-      repo = BulbRepository(
-        proto: proto,
-        discovery: discovery,
-        store: store,
-        connectivity: connectivity,
-      );
-      await repo.init();
-      await repo.scan();
-
-      await repo.refreshAll();
-
-      expect(repo.isScanning, false);
-    });
-
-    test('refreshAll marks unresponsive bulbs as offline', () async {
-      discovery = FakeDiscovery(
-        discoverResult: [_bulb('mac1', ip: '192.168.1.100')],
-      );
-      repo = BulbRepository(
-        proto: proto,
-        discovery: discovery,
-        store: store,
-        connectivity: connectivity,
-      );
-      await repo.init();
-      await repo.scan();
-
-      expect(repo.bulbs.first.isOnline, true);
-
-      await repo.refreshAll();
-
-      expect(repo.bulbs.first.isOnline, false);
-    });
-  });
 }

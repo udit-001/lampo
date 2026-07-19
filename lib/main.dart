@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import 'data/repositories/bulb_repository.dart';
 import 'data/services/bulb_store.dart';
-import 'data/services/connectivity_service.dart';
 import 'data/services/discovery.dart';
 import 'data/services/wifi_band_service.dart';
 import 'data/services/wiz_protocol.dart';
@@ -16,14 +15,12 @@ void main() async {
 
   final proto = await WizProtocolImpl.create();
   final store = BulbStore();
-  final connectivity = ConnectivityServiceImpl();
   final discovery = Discovery(proto);
   final wifiBandService = WifiBandServiceImpl();
   final repository = BulbRepository(
     proto: proto,
     discovery: discovery,
     store: store,
-    connectivity: connectivity,
   );
   final viewModel = BulbViewModel(
     repository: repository,
@@ -35,7 +32,6 @@ void main() async {
       providers: [
         Provider<WizProtocol>.value(value: proto),
         Provider<BulbStore>.value(value: store),
-        Provider<ConnectivityService>.value(value: connectivity),
         Provider<BulbRepository>.value(value: repository),
         Provider<WifiBandService>.value(value: wifiBandService),
         ChangeNotifierProvider<BulbViewModel>.value(value: viewModel),

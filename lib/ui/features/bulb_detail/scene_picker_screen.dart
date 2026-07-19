@@ -1,141 +1,57 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
-import '../../../data/repositories/bulb_repository.dart';
-import '../../../data/services/connectivity_service.dart';
 import '../../../domain/models/bulb_type.dart';
 import '../../../domain/models/scene.dart';
 import '../../core/bulb_colors.dart';
 
 enum SceneFilter { static_, animated }
 
-class ScenePickerScreen extends StatefulWidget {
+class ScenePickerScreen extends StatelessWidget {
   final int? currentSceneId;
   final BulbClass bulbClass;
-  final BulbRepository repository;
 
   const ScenePickerScreen({
     super.key,
     this.currentSceneId,
     this.bulbClass = BulbClass.rgb,
-    required this.repository,
   });
 
   @override
-  State<ScenePickerScreen> createState() => _ScenePickerScreenState();
-}
-
-class _ScenePickerScreenState extends State<ScenePickerScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-  bool _isDisabled = false;
-  Timer? _disabledDebounce;
-
-  @override
-  void initState() {
-    super.initState();
-    final currentScene = widget.currentSceneId != null
-        ? WizScene.fromId(widget.currentSceneId!)
+  Widget build(BuildContext context) {
+    final currentScene = currentSceneId != null
+        ? WizScene.fromId(currentSceneId!)
         : null;
     final initialIndex = currentScene?.isDynamic == true ? 1 : 0;
-    _tabController = TabController(
+
+    return DefaultTabController(
       length: 2,
-      vsync: this,
       initialIndex: initialIndex,
-    );
-    _isDisabled = _controlsDisabled;
-    widget.repository.addListener(_onRepositoryChanged);
-  }
-
-  @override
-  void dispose() {
-    _disabledDebounce?.cancel();
-    widget.repository.removeListener(_onRepositoryChanged);
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  void _onRepositoryChanged() {
-    if (!mounted) return;
-    _disabledDebounce?.cancel();
-    _disabledDebounce = Timer(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      final nowDisabled = _controlsDisabled;
-      if (nowDisabled != _isDisabled) {
-        _isDisabled = nowDisabled;
-        setState(() {});
-      }
-    });
-  }
-
-  bool get _controlsDisabled =>
-      widget.repository.connectionType != ConnectionType.wifi;
-
-  void _showNoConnectionToast() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('No connection'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final disabled = _isDisabled;
-
-    Widget body = TabBarView(
-      controller: _tabController,
-      physics: const NeverScrollableScrollPhysics(),
-      children: [
-        _SceneGrid(
-          filter: SceneFilter.static_,
-          currentSceneId: widget.currentSceneId,
-          bulbClass: widget.bulbClass,
-          controlsDisabled: disabled,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Choose Scene'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Static'),
+              Tab(text: 'Animated'),
+            ],
+          ),
         ),
-        _SceneGrid(
-          filter: SceneFilter.animated,
-          currentSceneId: widget.currentSceneId,
-          bulbClass: widget.bulbClass,
-          controlsDisabled: disabled,
-        ),
-      ],
-    );
-
-    if (disabled) {
-      body = Opacity(opacity: 0.4, child: body);
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Choose Scene'),
-        actions: [
-          if (disabled)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(
-                LucideIcons.wifi_off,
-                size: 20,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+        body: TabBarView(
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _SceneGrid(
+              filter: SceneFilter.static_,
+              currentSceneId: currentSceneId,
+              bulbClass: bulbClass,
             ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Static'),
-            Tab(text: 'Animated'),
+            _SceneGrid(
+              filter: SceneFilter.animated,
+              currentSceneId: currentSceneId,
+              bulbClass: bulbClass,
+            ),
           ],
         ),
-      ),
-      body: GestureDetector(
-        onTap: disabled ? _showNoConnectionToast : null,
-        behavior: HitTestBehavior.translucent,
-        child: body,
       ),
     );
   }
@@ -145,13 +61,11 @@ class _SceneGrid extends StatefulWidget {
   final SceneFilter filter;
   final int? currentSceneId;
   final BulbClass bulbClass;
-  final bool controlsDisabled;
 
   const _SceneGrid({
     required this.filter,
     this.currentSceneId,
     required this.bulbClass,
-    this.controlsDisabled = false,
   });
 
   @override
@@ -201,7 +115,6 @@ class _SceneGridState extends State<_SceneGrid> {
           key: isSelected ? _selectedKey : null,
           scene: scene,
           isSelected: isSelected,
-          controlsDisabled: widget.controlsDisabled,
         );
       },
     );
@@ -220,13 +133,11 @@ class _SceneGridState extends State<_SceneGrid> {
 class _SceneTile extends StatelessWidget {
   final WizScene scene;
   final bool isSelected;
-  final bool controlsDisabled;
 
   const _SceneTile({
     super.key,
     required this.scene,
     required this.isSelected,
-    this.controlsDisabled = false,
   });
 
   @override
@@ -240,7 +151,7 @@ class _SceneTile extends StatelessWidget {
       button: true,
       selected: isSelected,
       child: GestureDetector(
-        onTap: controlsDisabled ? null : () => Navigator.pop(context, scene.id),
+        onTap: () => Navigator.pop(context, scene.id),
         behavior: HitTestBehavior.opaque,
         child: Column(
           children: [

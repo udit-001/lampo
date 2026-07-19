@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import '../../../data/models/bulb.dart';
 import '../../../data/models/bulb_state.dart';
 import '../../../data/repositories/bulb_repository.dart';
-import '../../../data/services/connectivity_service.dart';
 import '../../../domain/models/bulb_type.dart';
 import '../../../domain/models/scene.dart';
 
@@ -31,7 +30,6 @@ class BulbDetailViewModel extends ChangeNotifier {
   BulbMode get selectedMode => _selectedMode;
   bool get isUserInteracting => _isUserInteracting;
   bool get isLoading => _isLoading;
-  bool get controlsDisabled => _repository.connectionType != ConnectionType.wifi;
 
   BulbFeatures get _features => BulbTypeDetector.featuresFor(bulb?.bulbClass ?? BulbClass.rgb);
 

@@ -6,7 +6,6 @@ import '../models/bulb_command.dart';
 import '../models/bulb_event.dart';
 import '../models/bulb_state.dart';
 import '../services/bulb_store.dart';
-import '../services/connectivity_service.dart';
 import '../services/discovery.dart';
 import '../services/wiz_protocol.dart';
 import '../../domain/models/bulb_limits.dart';
@@ -17,9 +16,7 @@ class BulbRepository {
   final WizProtocol _proto;
   final Discovery _discovery;
   final BulbStore _store;
-  final ConnectivityService _connectivity;
   StreamSubscription<BulbEvent>? _eventSub;
-  StreamSubscription<ConnectionType>? _connectivitySub;
   Timer? _pollTimer;
   List<Bulb> _bulbs = [];
   bool _isScanning = false;
@@ -28,26 +25,19 @@ class BulbRepository {
   final Set<String> _commandFailed = {};
   final Set<String> _interactingBulbIds = {};
   final List<void Function()> _listeners = [];
-  ConnectionType _connectionType = ConnectionType.wifi;
   final Duration _backgroundThreshold;
-  final Duration _reconnectDelay;
   DateTime? _backgroundedAt;
   bool _isReconnecting = false;
-  Timer? _reconnectDebounce;
 
   BulbRepository({
     required WizProtocol proto,
     required Discovery discovery,
     required BulbStore store,
-    required ConnectivityService connectivity,
     Duration backgroundThreshold = const Duration(minutes: 2),
-    Duration reconnectDelay = const Duration(seconds: 3),
   })  : _proto = proto,
         _discovery = discovery,
         _store = store,
-        _connectivity = connectivity,
-        _backgroundThreshold = backgroundThreshold,
-        _reconnectDelay = reconnectDelay;
+        _backgroundThreshold = backgroundThreshold;
 
   void addListener(void Function() callback) {
     _listeners.add(callback);
@@ -63,26 +53,11 @@ class BulbRepository {
     }
   }
 
-  void _onConnectivityChanged(ConnectionType type) {
-    _connectionType = type;
-    _notifyListeners();
-
-    if (type == ConnectionType.wifi) {
-      _reconnectDebounce?.cancel();
-      _reconnectDebounce = Timer(_reconnectDelay, _reconnect);
-    } else {
-      _reconnectDebounce?.cancel();
-      _pollTimer?.cancel();
-      _pollTimer = null;
-    }
-  }
-
   bool _initialized = false;
 
   List<Bulb> get bulbs => _bulbs;
   bool get isScanning => _isScanning;
   bool get isReconnecting => _isReconnecting;
-  ConnectionType get connectionType => _connectionType;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -92,40 +67,38 @@ class BulbRepository {
         .map((b) => b.copyWith(isOnline: false))
         .toList();
     _eventSub = _proto.events.listen(_handleEvent);
-    _connectionType = await _connectivity.checkConnectivity();
-    _connectivitySub = _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
     _notifyListeners();
   }
 
   Future<void> startupFetch() async {
     if (_bulbs.isEmpty) return;
 
-    final onlineBulbs = <Bulb>[];
-    for (final bulb in _bulbs) {
-      try {
-        final state = await _proto.getPilotState(bulb).timeout(
-          const Duration(seconds: 3),
-        );
-        if (state != null) {
-          final updated = bulb.copyWith(
-            isOnline: true,
-            state: BulbState.fromMap(
-              _stateToMap(state),
-              previous: bulb.state,
-            ),
-            lastSeen: DateTime.now(),
+    final results = await Future.wait(
+      _bulbs.map((bulb) async {
+        try {
+          final state = await _proto.getPilotState(bulb).timeout(
+            const Duration(seconds: 3),
           );
-          onlineBulbs.add(await _fetchKelvinRange(updated));
-        } else {
-          onlineBulbs.add(bulb.copyWith(isOnline: false));
+          if (state != null) {
+            final updated = bulb.copyWith(
+              isOnline: true,
+              state: BulbState.fromMap(
+                _stateToMap(state),
+                previous: bulb.state,
+              ),
+              lastSeen: DateTime.now(),
+            );
+            return await _fetchKelvinRange(updated);
+          } else {
+            return bulb.copyWith(isOnline: false);
+          }
+        } catch (_) {
+          return bulb.copyWith(isOnline: false);
         }
-      } catch (_) {
-        onlineBulbs.add(bulb.copyWith(isOnline: false));
-      }
-      _notifyListeners();
-    }
+      }),
+    );
 
-    _bulbs = onlineBulbs;
+    _bulbs = results;
     final anyOnline = _bulbs.any((b) => b.isOnline);
     if (!anyOnline) {
       await scan();
@@ -301,9 +274,9 @@ class BulbRepository {
     for (final bulb in _bulbs.where((b) => b.isOnline)) {
       if (_interactingBulbIds.contains(bulb.id)) continue;
       final state = await _proto.getPilotState(bulb);
-      if (state != null) {
-        final idx = _bulbs.indexWhere((b) => b.id == bulb.id);
-        if (idx != -1) {
+      final idx = _bulbs.indexWhere((b) => b.id == bulb.id);
+      if (idx != -1) {
+        if (state != null) {
           _bulbs[idx] = _bulbs[idx].copyWith(
             state: BulbState.fromMap(
               _stateToMap(state),
@@ -311,9 +284,11 @@ class BulbRepository {
             ),
             lastSeen: DateTime.now(),
           );
-          _checkCommandFailed(_bulbs[idx], _bulbs[idx].state ?? const BulbState());
-          _notifyListeners();
+        } else {
+          _bulbs[idx] = _bulbs[idx].copyWith(isOnline: false);
         }
+        _checkCommandFailed(_bulbs[idx], _bulbs[idx].state ?? const BulbState());
+        _notifyListeners();
       }
     }
   }
@@ -600,9 +575,7 @@ class BulbRepository {
 
   void dispose() {
     _pollTimer?.cancel();
-    _reconnectDebounce?.cancel();
     _eventSub?.cancel();
-    _connectivitySub?.cancel();
     _proto.close();
   }
 }

@@ -9,7 +9,6 @@ import 'package:lampo/domain/models/bulb_limits.dart';
 import 'package:lampo/domain/models/bulb_type.dart';
 
 import '../services/fake_bulb_store.dart';
-import '../services/fake_connectivity_service.dart';
 import '../services/fake_discovery.dart';
 
 Bulb _bulb(String mac, {String ip = '192.168.1.100'}) {
@@ -25,11 +24,9 @@ void main() {
   late FakeWizProtocol proto;
   late FakeBulbStore store;
   late FakeDiscovery discovery;
-  late FakeConnectivityService connectivity;
   late BulbRepository repo;
 
   setUp(() {
-    connectivity = FakeConnectivityService();
   });
 
   Future<void> setupRepo({BulbState? initialState}) async {
@@ -38,7 +35,7 @@ void main() {
     discovery = FakeDiscovery(
       discoverResult: [_bulb('mac1')],
     );
-    repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+    repo = BulbRepository(proto: proto, discovery: discovery, store: store);
     await repo.init();
     await repo.scan();
     if (initialState != null) {
@@ -122,7 +119,7 @@ void main() {
             ),
           ],
         );
-        repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+        repo = BulbRepository(proto: proto, discovery: discovery, store: store);
         await repo.init();
         await repo.scan();
 
@@ -209,7 +206,7 @@ void main() {
         discovery = FakeDiscovery(
           discoverResult: [_bulb('mac1')],
         );
-        repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+        repo = BulbRepository(proto: proto, discovery: discovery, store: store);
         await repo.init();
         await repo.scan();
 
@@ -233,7 +230,7 @@ void main() {
         discovery = FakeDiscovery(
           discoverResult: [_bulb('mac1')],
         );
-        repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+        repo = BulbRepository(proto: proto, discovery: discovery, store: store);
         await repo.init();
         await repo.scan();
 
@@ -255,7 +252,7 @@ void main() {
             ),
           ],
         );
-        repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+        repo = BulbRepository(proto: proto, discovery: discovery, store: store);
         await repo.init();
         await repo.scan();
 
@@ -280,7 +277,7 @@ void main() {
             ),
           ],
         );
-        repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+        repo = BulbRepository(proto: proto, discovery: discovery, store: store);
         await repo.init();
         await repo.scan();
 
@@ -300,7 +297,7 @@ void main() {
             ),
           ],
         );
-        repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+        repo = BulbRepository(proto: proto, discovery: discovery, store: store);
         await repo.init();
         await repo.scan();
 

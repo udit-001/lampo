@@ -4,13 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lampo/data/models/bulb.dart';
 import 'package:lampo/data/models/bulb_state.dart';
 import 'package:lampo/data/repositories/bulb_repository.dart';
-import 'package:lampo/data/services/connectivity_service.dart';
 import 'package:lampo/data/services/fake_wiz_protocol.dart';
 import 'package:lampo/data/services/wifi_band_service.dart';
 import 'package:lampo/ui/features/home/home_viewmodel.dart';
 
 import '../../../data/services/fake_bulb_store.dart';
-import '../../../data/services/fake_connectivity_service.dart';
 import '../../../data/services/fake_discovery.dart';
 import '../../../data/services/fake_wifi_band_service.dart';
 
@@ -18,7 +16,6 @@ void main() {
   late FakeWizProtocol proto;
   late FakeBulbStore store;
   late FakeDiscovery discovery;
-  late FakeConnectivityService connectivity;
   late BulbRepository repository;
   late FakeWifiBandService wifiBandService;
   late BulbViewModel viewModel;
@@ -26,7 +23,6 @@ void main() {
   setUp(() {
     proto = FakeWizProtocol();
     store = FakeBulbStore();
-    connectivity = FakeConnectivityService();
     discovery = FakeDiscovery(
       discoverResult: [
         Bulb(
@@ -38,7 +34,7 @@ void main() {
       ],
     );
     wifiBandService = FakeWifiBandService();
-    repository = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+    repository = BulbRepository(proto: proto, discovery: discovery, store: store);
     viewModel = BulbViewModel(
       repository: repository,
       wifiBandService: wifiBandService,
@@ -134,7 +130,6 @@ void main() {
         proto: proto,
         discovery: emptyDiscovery,
         store: FakeBulbStore(),
-        connectivity: connectivity,
       );
       final vm = BulbViewModel(
         repository: emptyRepo,
@@ -175,37 +170,6 @@ void main() {
       expect(notifyCount, greaterThan(0));
       expect(viewModel.bulbs.first.state!.on, false);
       expect(viewModel.bulbs.first.state!.dimming, 50);
-    });
-
-    test('isReconnecting delegates to repository', () async {
-      final fastRepo = BulbRepository(
-        proto: proto,
-        discovery: discovery,
-        store: store,
-        connectivity: connectivity,
-        reconnectDelay: Duration.zero,
-      );
-      final vm = BulbViewModel(
-        repository: fastRepo,
-        wifiBandService: wifiBandService,
-      );
-      await vm.init();
-
-      expect(vm.isReconnecting, false);
-
-      bool wasReconnecting = false;
-      vm.addListener(() {
-        if (vm.isReconnecting) wasReconnecting = true;
-      });
-
-      connectivity.emit(ConnectionType.cellular);
-      await Future.delayed(Duration.zero);
-
-      connectivity.emit(ConnectionType.wifi);
-      await Future.delayed(const Duration(milliseconds: 10));
-
-      expect(wasReconnecting, true);
-      expect(vm.isReconnecting, false);
     });
   });
 }

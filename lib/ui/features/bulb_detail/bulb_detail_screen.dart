@@ -75,19 +75,13 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
         final bulb = _viewModel.bulb ?? widget.bulb;
         final state = _viewModel.state;
         final isOn = bulb.isOnline && state.on;
-        final reachable = bulb.isOnline && !_viewModel.controlsDisabled;
-        final controlsEnabled = isOn && !_viewModel.controlsDisabled;
+        final reachable = bulb.isOnline;
+        final controlsEnabled = isOn;
 
         return Scaffold(
           appBar: AppBar(
             title: Text(bulb.displayName),
             actions: [
-              if (_viewModel.controlsDisabled)
-                Icon(
-                  LucideIcons.wifi_off,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
               IconButton(
                 icon: Icon(LucideIcons.info),
                 onPressed: () async {
@@ -115,51 +109,38 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
           ),
           body: _viewModel.isLoading && bulb.state == null
               ? _buildLoadingShimmer(context)
-              : GestureDetector(
-                  onTap: _viewModel.controlsDisabled ? _showNoConnectionToast : null,
-                  behavior: HitTestBehavior.translucent,
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    children: [
-                      PreviewBox(
-                        state: state,
-                        isOnline: bulb.isOnline,
-                        commandFailed: _viewModel.commandFailed,
-                        onTap: reachable
-                            ? () {
-                                HapticFeedback.lightImpact();
-                                _viewModel.toggle();
-                              }
-                            : null,
-                      ),
-                      const SizedBox(height: 20),
-                      if (_viewModel.showBrightness) ...[
-                        _buildBrightness(context, theme, controlsEnabled, state),
-                        const SizedBox(height: 8),
-                        if (_viewModel.showModeToggle) ...[
-                          const Divider(),
-                          const SizedBox(height: 8),
-                        ],
-                      ],
+              : ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  children: [
+                    PreviewBox(
+                      state: state,
+                      isOnline: bulb.isOnline,
+                      commandFailed: _viewModel.commandFailed,
+                      onTap: reachable
+                          ? () {
+                              HapticFeedback.lightImpact();
+                              _viewModel.toggle();
+                            }
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    if (_viewModel.showBrightness) ...[
+                      _buildBrightness(context, theme, controlsEnabled, state),
+                      const SizedBox(height: 8),
                       if (_viewModel.showModeToggle) ...[
-                        _buildModeToggle(context, theme, controlsEnabled),
-                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 8),
                       ],
-                      _buildModeControls(context, theme, controlsEnabled, state),
                     ],
-                  ),
+                    if (_viewModel.showModeToggle) ...[
+                      _buildModeToggle(context, theme, controlsEnabled),
+                      const SizedBox(height: 16),
+                    ],
+                    _buildModeControls(context, theme, controlsEnabled, state),
+                  ],
                 ),
         );
       },
-    );
-  }
-
-  void _showNoConnectionToast() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('No connection'),
-        duration: Duration(seconds: 2),
-      ),
     );
   }
 
@@ -548,7 +529,6 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
         builder: (_) => ScenePickerScreen(
           currentSceneId: _viewModel.state.sceneId,
           bulbClass: widget.bulb.bulbClass,
-          repository: widget.repository,
         ),
       ),
     );

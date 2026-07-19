@@ -5,20 +5,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lampo/data/models/bulb.dart';
 import 'package:lampo/data/models/bulb_state.dart';
 import 'package:lampo/data/repositories/bulb_repository.dart';
-import 'package:lampo/data/services/connectivity_service.dart';
 import 'package:lampo/data/services/fake_wiz_protocol.dart';
 import 'package:lampo/ui/core/preview_box.dart';
 import 'package:lampo/ui/features/bulb_detail/bulb_detail_screen.dart';
 
 import '../../../data/services/fake_bulb_store.dart';
-import '../../../data/services/fake_connectivity_service.dart';
 import '../../../data/services/fake_discovery.dart';
 
 void main() {
   late FakeWizProtocol proto;
   late FakeBulbStore store;
   late FakeDiscovery discovery;
-  late FakeConnectivityService connectivity;
   late BulbRepository repository;
 
   Bulb offBulb() => Bulb(
@@ -45,25 +42,6 @@ void main() {
     await tester.pump();
   }
 
-  ({BulbRepository repo, FakeWizProtocol proto, FakeConnectivityService conn})
-      buildCellularRepo() {
-    final cellProto = FakeWizProtocol();
-    cellProto.setCannedState(
-      '192.168.1.100',
-      const BulbState(on: false, dimming: 50),
-    );
-    final cellConn = FakeConnectivityService(
-      connectionType: ConnectionType.cellular,
-    );
-    final cellRepo = BulbRepository(
-      proto: cellProto,
-      discovery: FakeDiscovery(discoverResult: [offBulb()]),
-      store: FakeBulbStore(),
-      connectivity: cellConn,
-    );
-    return (repo: cellRepo, proto: cellProto, conn: cellConn);
-  }
-
   setUp(() async {
     proto = FakeWizProtocol();
     proto.setCannedState(
@@ -71,13 +49,11 @@ void main() {
       const BulbState(on: false, dimming: 50),
     );
     store = FakeBulbStore();
-    connectivity = FakeConnectivityService();
     discovery = FakeDiscovery(discoverResult: [offBulb()]);
     repository = BulbRepository(
       proto: proto,
       discovery: discovery,
       store: store,
-      connectivity: connectivity,
     );
     await repository.init();
     await repository.scan();
@@ -86,7 +62,6 @@ void main() {
   tearDown(() {
     repository.dispose();
     proto.close();
-    connectivity.dispose();
   });
 
   group('BulbDetailScreen power-on when bulb is off + reachable', () {
@@ -155,7 +130,6 @@ void main() {
         proto: offlineProto,
         discovery: FakeDiscovery(discoverResult: const []),
         store: FakeBulbStore(),
-        connectivity: FakeConnectivityService(),
       );
       await offlineRepo.init();
 
@@ -170,61 +144,6 @@ void main() {
       } finally {
         offlineRepo.dispose();
         offlineProto.close();
-      }
-    });
-
-    testWidgets('AppBar Switch disabled on cellular', (tester) async {
-      final cell = buildCellularRepo();
-      await cell.repo.init();
-      await cell.repo.scan();
-
-      try {
-        await pumpScreen(tester, repo: cell.repo);
-
-        final sw = tester.widget<Switch>(find.byType(Switch));
-        expect(sw.onChanged, isNull);
-      } finally {
-        cell.repo.dispose();
-        cell.proto.close();
-        cell.conn.dispose();
-      }
-    });
-
-    testWidgets('PreviewBox tap disabled on cellular', (tester) async {
-      final cell = buildCellularRepo();
-      await cell.repo.init();
-      await cell.repo.scan();
-
-      try {
-        await pumpScreen(tester, repo: cell.repo);
-
-        final preview = tester.widget<PreviewBox>(find.byType(PreviewBox));
-        expect(preview.onTap, isNull);
-      } finally {
-        cell.repo.dispose();
-        cell.proto.close();
-        cell.conn.dispose();
-      }
-    });
-
-    testWidgets('body tap shows No connection snackbar on cellular',
-        (tester) async {
-      final cell = buildCellularRepo();
-      await cell.repo.init();
-      await cell.repo.scan();
-
-      try {
-        await pumpScreen(tester, repo: cell.repo);
-
-        await tester.tap(find.byType(PreviewBox));
-        await tester.pump();
-        await tester.pump();
-
-        expect(find.text('No connection'), findsOneWidget);
-      } finally {
-        cell.repo.dispose();
-        cell.proto.close();
-        cell.conn.dispose();
       }
     });
   });

@@ -5,19 +5,16 @@ import 'package:lampo/data/models/bulb.dart';
 import 'package:lampo/data/models/bulb_event.dart';
 import 'package:lampo/data/models/bulb_state.dart';
 import 'package:lampo/data/repositories/bulb_repository.dart';
-import 'package:lampo/data/services/connectivity_service.dart';
 import 'package:lampo/data/services/fake_wiz_protocol.dart';
 import 'package:lampo/ui/features/bulb_detail/bulb_detail_viewmodel.dart';
 
 import '../../../data/services/fake_bulb_store.dart';
-import '../../../data/services/fake_connectivity_service.dart';
 import '../../../data/services/fake_discovery.dart';
 
 void main() {
   late FakeWizProtocol proto;
   late FakeBulbStore store;
   late FakeDiscovery discovery;
-  late FakeConnectivityService connectivity;
   late BulbRepository repository;
   late BulbDetailViewModel viewModel;
 
@@ -31,11 +28,10 @@ void main() {
   setUp(() async {
     proto = FakeWizProtocol();
     store = FakeBulbStore();
-    connectivity = FakeConnectivityService();
     discovery = FakeDiscovery(
       discoverResult: [rgbBulb()],
     );
-    repository = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
+    repository = BulbRepository(proto: proto, discovery: discovery, store: store);
     await repository.init();
     await repository.scan();
 
@@ -141,7 +137,7 @@ void main() {
           ),
         ],
       );
-      final twRepo = BulbRepository(proto: twProto, discovery: twDiscovery, store: twStore, connectivity: connectivity);
+      final twRepo = BulbRepository(proto: twProto, discovery: twDiscovery, store: twStore);
       await twRepo.init();
       await twRepo.scan();
 
@@ -166,7 +162,7 @@ void main() {
           ),
         ],
       );
-      final dwRepo = BulbRepository(proto: dwProto, discovery: dwDiscovery, store: dwStore, connectivity: connectivity);
+      final dwRepo = BulbRepository(proto: dwProto, discovery: dwDiscovery, store: dwStore);
       await dwRepo.init();
       await dwRepo.scan();
 
@@ -190,7 +186,7 @@ void main() {
           ),
         ],
       );
-      final socketRepo = BulbRepository(proto: socketProto, discovery: socketDiscovery, store: socketStore, connectivity: connectivity);
+      final socketRepo = BulbRepository(proto: socketProto, discovery: socketDiscovery, store: socketStore);
       await socketRepo.init();
       await socketRepo.scan();
 
@@ -214,7 +210,7 @@ void main() {
           ),
         ],
       );
-      final twRepo = BulbRepository(proto: twProto, discovery: twDiscovery, store: twStore, connectivity: connectivity);
+      final twRepo = BulbRepository(proto: twProto, discovery: twDiscovery, store: twStore);
       await twRepo.init();
       await twRepo.scan();
 
@@ -245,27 +241,13 @@ void main() {
           ),
         ],
       );
-      final dwRepo = BulbRepository(proto: dwProto, discovery: dwDiscovery, store: dwStore, connectivity: connectivity);
+      final dwRepo = BulbRepository(proto: dwProto, discovery: dwDiscovery, store: dwStore);
       await dwRepo.init();
       await dwRepo.scan();
 
       final dwVm = BulbDetailViewModel(repository: dwRepo, bulbId: 'macDw');
       expect(dwVm.availableModes, [BulbMode.scene]);
       expect(dwVm.selectedMode, BulbMode.scene);
-    });
-
-    test('controlsDisabled is false on WiFi and true on cellular', () async {
-      expect(viewModel.controlsDisabled, false);
-
-      connectivity.emit(ConnectionType.cellular);
-      await Future.delayed(Duration.zero);
-
-      expect(viewModel.controlsDisabled, true);
-
-      connectivity.emit(ConnectionType.wifi);
-      await Future.delayed(Duration.zero);
-
-      expect(viewModel.controlsDisabled, false);
     });
   });
 }
