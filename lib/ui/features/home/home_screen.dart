@@ -1,3 +1,4 @@
+import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
@@ -52,11 +53,26 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: viewModel.isInitializing
           ? _loadingState(context)
-          : viewModel.scanError != null && bulbs.isEmpty
-              ? _errorState(context, viewModel)
-              : bulbs.isEmpty
-                  ? _emptyState(context, viewModel)
-                  : _bulbList(context, viewModel, online, offline),
+          : Column(
+              children: [
+                if (viewModel.isOnCellular || viewModel.isOffline)
+                  _ConnectivityBanner(
+                    isOffline: viewModel.isOffline,
+                  ),
+                if (viewModel.isReconnecting)
+                  const LinearProgressIndicator(),
+                Expanded(
+                  child: viewModel.scanError != null && bulbs.isEmpty
+                      ? _errorState(context, viewModel)
+                      : bulbs.isEmpty
+                          ? _emptyState(context, viewModel)
+                          : RefreshIndicator(
+                              onRefresh: viewModel.refresh,
+                              child: _bulbList(context, viewModel, online, offline),
+                            ),
+                ),
+              ],
+            ),
     );
   }
 
@@ -162,8 +178,9 @@ class _HomeScreenState extends State<HomeScreen> {
     List<Bulb> online,
     List<Bulb> offline,
   ) {
+    final onCellular = viewModel.isOnCellular;
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(top: 16, bottom: 16),
       itemCount: online.length + (offline.isEmpty ? 0 : 1) + offline.length,
       itemBuilder: (context, index) {
         if (index < online.length) {
@@ -171,11 +188,14 @@ class _HomeScreenState extends State<HomeScreen> {
           return _BulbRow(
             bulb: bulb,
             showDivider: index < online.length - 1 || offline.isNotEmpty,
-            onTap: () => _openDetail(context, bulb),
-            onToggle: () {
-              HapticFeedback.lightImpact();
-              viewModel.toggle(bulb);
-            },
+            onTap: onCellular ? null : () => _openDetail(context, bulb),
+            onToggle: onCellular
+                ? null
+                : () {
+                    HapticFeedback.lightImpact();
+                    viewModel.toggle(bulb);
+                  },
+            disabled: onCellular,
           );
         }
         final adjustedIndex = index - online.length;
@@ -190,13 +210,14 @@ class _HomeScreenState extends State<HomeScreen> {
         return _BulbRow(
           bulb: bulb,
           showDivider: adjustedIndex - (offline.isNotEmpty ? 1 : 0) < offline.length - 1,
-          onTap: () => _openDetail(context, bulb),
-          onToggle: bulb.isOnline
-              ? () {
+          onTap: onCellular ? null : () => _openDetail(context, bulb),
+          onToggle: (onCellular || !bulb.isOnline)
+              ? null
+              : () {
                   HapticFeedback.lightImpact();
                   viewModel.toggle(bulb);
-                }
-              : null,
+                },
+          disabled: onCellular,
         );
       },
     );
@@ -258,22 +279,24 @@ class _SectionHeader extends StatelessWidget {
 class _BulbRow extends StatelessWidget {
   final Bulb bulb;
   final bool showDivider;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final VoidCallback? onToggle;
+  final bool disabled;
 
   const _BulbRow({
     required this.bulb,
     required this.showDivider,
     required this.onTap,
     this.onToggle,
+    this.disabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final state = bulb.state;
-    final isOn = bulb.isOnline && state != null && state.on;
-    final isOffline = !bulb.isOnline;
+    final isOn = bulb.isOnline && state != null && state.on && !disabled;
+    final isOffline = !bulb.isOnline || disabled;
 
     Widget circle;
     if (isOffline) {
@@ -320,7 +343,7 @@ class _BulbRow extends StatelessWidget {
           height: 44,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: BulbColors.dynamicSceneGradient,
+            gradient: BulbColors.sceneGradient(state.sceneId!),
             boxShadow: [
               BoxShadow(
                 color: theme.colorScheme.primary.withAlpha(60),
@@ -428,7 +451,7 @@ class _BulbRow extends StatelessWidget {
   }
 
   String _subtitle(Bulb bulb) {
-    if (!bulb.isOnline) {
+    if (!bulb.isOnline || disabled) {
       return 'Offline \u00b7 last seen ${_lastSeenLabel(bulb.lastSeen)}';
     }
 
@@ -494,5 +517,72 @@ class _DashedCirclePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _DashedCirclePainter oldDelegate) {
     return color != oldDelegate.color || strokeWidth != oldDelegate.strokeWidth;
+  }
+}
+
+class _ConnectivityBanner extends StatelessWidget {
+  final bool isOffline;
+
+  const _ConnectivityBanner({required this.isOffline});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bgColor = theme.colorScheme.errorContainer;
+    final fgColor = theme.colorScheme.onErrorContainer;
+
+    return Material(
+      color: bgColor,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Row(
+          children: [
+            Icon(
+              isOffline ? LucideIcons.wifi_off : LucideIcons.radio,
+              size: 20,
+              color: fgColor,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isOffline ? 'No network' : 'On cellular data',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: fgColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isOffline
+                        ? 'Connect to Wi\u2011Fi to control your lights'
+                        : 'Bulbs need a local Wi\u2011Fi network to respond',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: fgColor.withAlpha(200),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: () => AppSettings.openAppSettings(
+                type: AppSettingsType.wifi,
+              ),
+              icon: const Icon(LucideIcons.wifi, size: 16),
+              label: const Text('Wi\u2011Fi'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 48),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../data/models/bulb.dart';
+import '../../../domain/models/bulb_type.dart';
 import 'bulb_detail_viewmodel.dart';
 
 class DeviceInfoScreen extends StatefulWidget {
@@ -56,6 +57,8 @@ class _DeviceInfoScreenState extends State<DeviceInfoScreen> {
             if (bulb.mac != null) _infoRow(theme, 'MAC', bulb.mac!, mono: true),
             if (bulb.model != null) _infoRow(theme, 'Model', bulb.model!),
             if (bulb.firmware != null) _infoRow(theme, 'Firmware', bulb.firmware!),
+            _infoRow(theme, 'Type', _bulbClassLabel(bulb.bulbClass)),
+            _infoRow(theme, 'Kelvin', '${bulb.kelvinMin}K – ${bulb.kelvinMax}K'),
             if (state?.rssi != null) _infoRow(theme, 'RSSI', '${state!.rssi} dBm'),
             _infoRow(theme, 'Status', isOnline ? 'Online' : 'Offline'),
             const SizedBox(height: 32),
@@ -179,6 +182,23 @@ class _DeviceInfoScreenState extends State<DeviceInfoScreen> {
     final alias = _aliasController.text.trim();
     widget.viewModel.setAlias(alias);
     Navigator.pop(context);
+  }
+
+  String _bulbClassLabel(BulbClass bulbClass) {
+    switch (bulbClass) {
+      case BulbClass.rgb:
+        return 'RGB Tunable';
+      case BulbClass.tw:
+        return 'Tunable White';
+      case BulbClass.dw:
+        return 'Dimmable White';
+      case BulbClass.socket:
+        return 'Smart Socket';
+      case BulbClass.fanDim:
+        return 'Fan (Dimmable)';
+      case BulbClass.fanTw:
+        return 'Fan (Tunable White)';
+    }
   }
 
   void _confirmRemove(BuildContext context) {

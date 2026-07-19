@@ -43,7 +43,7 @@ class BulbColorSwatch extends StatelessWidget {
         : null;
 
     if (scene?.isDynamic == true) {
-      return _gradientSwatch(size, theme);
+      return _gradientSwatch(size, theme, scene!.id);
     }
 
     return Container(
@@ -68,13 +68,13 @@ class BulbColorSwatch extends StatelessWidget {
     );
   }
 
-  Widget _gradientSwatch(double size, ThemeData theme) {
+  Widget _gradientSwatch(double size, ThemeData theme, int sceneId) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: BulbColors.dynamicSceneGradient,
+        gradient: BulbColors.sceneGradient(sceneId),
         boxShadow: [
           BoxShadow(
             color: theme.colorScheme.primary.withAlpha(60),

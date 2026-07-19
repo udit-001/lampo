@@ -48,7 +48,7 @@ class PreviewBox extends StatelessWidget {
             border: !isOnline
                 ? Border.all(color: theme.colorScheme.outline, width: 2)
                 : null,
-            gradient: isDynamicScene ? BulbColors.dynamicSceneGradient : null,
+            gradient: isDynamicScene ? BulbColors.sceneGradient(state.sceneId!) : null,
             boxShadow: isOn
                 ? [BoxShadow(
                     color: bgColor.withAlpha(100),
