@@ -18,6 +18,10 @@ class Discovery {
 
   Discovery(this._proto);
 
+  void clearCache() {
+    _cachedNetwork = null;
+  }
+
   Future<NetworkInfo> _detectNetwork() async {
     if (_cachedNetwork != null) return _cachedNetwork!;
 

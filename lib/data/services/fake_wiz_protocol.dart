@@ -11,6 +11,7 @@ import 'wiz_protocol.dart';
 class FakeWizProtocol implements WizProtocol {
   final Map<String, BulbState> _states = {};
   final Map<String, BulbInfo> _infos = {};
+  final Map<String, Map<String, dynamic>> _modelConfigs = {};
   final List<({Bulb bulb, BulbCommand command})> sentCommands = [];
   final List<InternetAddress> registeredIps = [];
   final StreamController<BulbEvent> _eventController =
@@ -22,6 +23,10 @@ class FakeWizProtocol implements WizProtocol {
 
   void setCannedInfo(String ip, BulbInfo info) {
     _infos[ip] = info;
+  }
+
+  void setCannedModelConfig(String ip, Map<String, dynamic> config) {
+    _modelConfigs[ip] = config;
   }
 
   void emitEvent(BulbEvent event) {
@@ -41,6 +46,11 @@ class FakeWizProtocol implements WizProtocol {
   @override
   Future<BulbInfo?> getSystemConfig(InternetAddress ip, {int port = wizPort}) async {
     return _infos[ip.address];
+  }
+
+  @override
+  Future<Map<String, dynamic>?> getModelConfig(InternetAddress ip, {int port = wizPort}) async {
+    return _modelConfigs[ip.address];
   }
 
   @override

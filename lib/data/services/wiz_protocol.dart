@@ -13,6 +13,7 @@ abstract class WizProtocol {
   Future<BulbState?> getPilotState(Bulb bulb);
   void setPilot(Bulb bulb, BulbCommand command);
   Future<BulbInfo?> getSystemConfig(InternetAddress ip, {int port});
+  Future<Map<String, dynamic>?> getModelConfig(InternetAddress ip, {int port});
   void register(InternetAddress broadcastIp, {int port});
   Stream<BulbEvent> get events;
   void close();

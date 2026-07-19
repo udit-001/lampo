@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Bulb {
 
- InternetAddress get ip; int get port; String? get mac; String? get model; String? get firmware; BulbState? get state; String? get alias; bool get isOnline; String? get lastSeenIp; DateTime? get lastSeen;
+ InternetAddress get ip; int get port; String? get mac; String? get model; String? get firmware; BulbState? get state; String? get alias; bool get isOnline; String? get lastSeenIp; DateTime? get lastSeen; int get kelvinMin; int get kelvinMax; BulbClass get bulbClass;
 /// Create a copy of Bulb
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $BulbCopyWith<Bulb> get copyWith => _$BulbCopyWithImpl<Bulb>(this as Bulb, _$ide
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Bulb&&(identical(other.ip, ip) || other.ip == ip)&&(identical(other.port, port) || other.port == port)&&(identical(other.mac, mac) || other.mac == mac)&&(identical(other.model, model) || other.model == model)&&(identical(other.firmware, firmware) || other.firmware == firmware)&&(identical(other.state, state) || other.state == state)&&(identical(other.alias, alias) || other.alias == alias)&&(identical(other.isOnline, isOnline) || other.isOnline == isOnline)&&(identical(other.lastSeenIp, lastSeenIp) || other.lastSeenIp == lastSeenIp)&&(identical(other.lastSeen, lastSeen) || other.lastSeen == lastSeen));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Bulb&&(identical(other.ip, ip) || other.ip == ip)&&(identical(other.port, port) || other.port == port)&&(identical(other.mac, mac) || other.mac == mac)&&(identical(other.model, model) || other.model == model)&&(identical(other.firmware, firmware) || other.firmware == firmware)&&(identical(other.state, state) || other.state == state)&&(identical(other.alias, alias) || other.alias == alias)&&(identical(other.isOnline, isOnline) || other.isOnline == isOnline)&&(identical(other.lastSeenIp, lastSeenIp) || other.lastSeenIp == lastSeenIp)&&(identical(other.lastSeen, lastSeen) || other.lastSeen == lastSeen)&&(identical(other.kelvinMin, kelvinMin) || other.kelvinMin == kelvinMin)&&(identical(other.kelvinMax, kelvinMax) || other.kelvinMax == kelvinMax)&&(identical(other.bulbClass, bulbClass) || other.bulbClass == bulbClass));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,ip,port,mac,model,firmware,state,alias,isOnline,lastSeenIp,lastSeen);
+int get hashCode => Object.hash(runtimeType,ip,port,mac,model,firmware,state,alias,isOnline,lastSeenIp,lastSeen,kelvinMin,kelvinMax,bulbClass);
 
 @override
 String toString() {
-  return 'Bulb(ip: $ip, port: $port, mac: $mac, model: $model, firmware: $firmware, state: $state, alias: $alias, isOnline: $isOnline, lastSeenIp: $lastSeenIp, lastSeen: $lastSeen)';
+  return 'Bulb(ip: $ip, port: $port, mac: $mac, model: $model, firmware: $firmware, state: $state, alias: $alias, isOnline: $isOnline, lastSeenIp: $lastSeenIp, lastSeen: $lastSeen, kelvinMin: $kelvinMin, kelvinMax: $kelvinMax, bulbClass: $bulbClass)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $BulbCopyWith<$Res>  {
   factory $BulbCopyWith(Bulb value, $Res Function(Bulb) _then) = _$BulbCopyWithImpl;
 @useResult
 $Res call({
- InternetAddress ip, int port, String? mac, String? model, String? firmware, BulbState? state, String? alias, bool isOnline, String? lastSeenIp, DateTime? lastSeen
+ InternetAddress ip, int port, String? mac, String? model, String? firmware, BulbState? state, String? alias, bool isOnline, String? lastSeenIp, DateTime? lastSeen, int kelvinMin, int kelvinMax, BulbClass bulbClass
 });
 
 
@@ -62,7 +62,7 @@ class _$BulbCopyWithImpl<$Res>
 
 /// Create a copy of Bulb
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? ip = null,Object? port = null,Object? mac = freezed,Object? model = freezed,Object? firmware = freezed,Object? state = freezed,Object? alias = freezed,Object? isOnline = null,Object? lastSeenIp = freezed,Object? lastSeen = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? ip = null,Object? port = null,Object? mac = freezed,Object? model = freezed,Object? firmware = freezed,Object? state = freezed,Object? alias = freezed,Object? isOnline = null,Object? lastSeenIp = freezed,Object? lastSeen = freezed,Object? kelvinMin = null,Object? kelvinMax = null,Object? bulbClass = null,}) {
   return _then(_self.copyWith(
 ip: null == ip ? _self.ip : ip // ignore: cast_nullable_to_non_nullable
 as InternetAddress,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable
@@ -74,7 +74,10 @@ as BulbState?,alias: freezed == alias ? _self.alias : alias // ignore: cast_null
 as String?,isOnline: null == isOnline ? _self.isOnline : isOnline // ignore: cast_nullable_to_non_nullable
 as bool,lastSeenIp: freezed == lastSeenIp ? _self.lastSeenIp : lastSeenIp // ignore: cast_nullable_to_non_nullable
 as String?,lastSeen: freezed == lastSeen ? _self.lastSeen : lastSeen // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as DateTime?,kelvinMin: null == kelvinMin ? _self.kelvinMin : kelvinMin // ignore: cast_nullable_to_non_nullable
+as int,kelvinMax: null == kelvinMax ? _self.kelvinMax : kelvinMax // ignore: cast_nullable_to_non_nullable
+as int,bulbClass: null == bulbClass ? _self.bulbClass : bulbClass // ignore: cast_nullable_to_non_nullable
+as BulbClass,
   ));
 }
 /// Create a copy of Bulb
@@ -171,10 +174,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( InternetAddress ip,  int port,  String? mac,  String? model,  String? firmware,  BulbState? state,  String? alias,  bool isOnline,  String? lastSeenIp,  DateTime? lastSeen)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( InternetAddress ip,  int port,  String? mac,  String? model,  String? firmware,  BulbState? state,  String? alias,  bool isOnline,  String? lastSeenIp,  DateTime? lastSeen,  int kelvinMin,  int kelvinMax,  BulbClass bulbClass)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Bulb() when $default != null:
-return $default(_that.ip,_that.port,_that.mac,_that.model,_that.firmware,_that.state,_that.alias,_that.isOnline,_that.lastSeenIp,_that.lastSeen);case _:
+return $default(_that.ip,_that.port,_that.mac,_that.model,_that.firmware,_that.state,_that.alias,_that.isOnline,_that.lastSeenIp,_that.lastSeen,_that.kelvinMin,_that.kelvinMax,_that.bulbClass);case _:
   return orElse();
 
 }
@@ -192,10 +195,10 @@ return $default(_that.ip,_that.port,_that.mac,_that.model,_that.firmware,_that.s
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( InternetAddress ip,  int port,  String? mac,  String? model,  String? firmware,  BulbState? state,  String? alias,  bool isOnline,  String? lastSeenIp,  DateTime? lastSeen)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( InternetAddress ip,  int port,  String? mac,  String? model,  String? firmware,  BulbState? state,  String? alias,  bool isOnline,  String? lastSeenIp,  DateTime? lastSeen,  int kelvinMin,  int kelvinMax,  BulbClass bulbClass)  $default,) {final _that = this;
 switch (_that) {
 case _Bulb():
-return $default(_that.ip,_that.port,_that.mac,_that.model,_that.firmware,_that.state,_that.alias,_that.isOnline,_that.lastSeenIp,_that.lastSeen);case _:
+return $default(_that.ip,_that.port,_that.mac,_that.model,_that.firmware,_that.state,_that.alias,_that.isOnline,_that.lastSeenIp,_that.lastSeen,_that.kelvinMin,_that.kelvinMax,_that.bulbClass);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -212,10 +215,10 @@ return $default(_that.ip,_that.port,_that.mac,_that.model,_that.firmware,_that.s
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( InternetAddress ip,  int port,  String? mac,  String? model,  String? firmware,  BulbState? state,  String? alias,  bool isOnline,  String? lastSeenIp,  DateTime? lastSeen)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( InternetAddress ip,  int port,  String? mac,  String? model,  String? firmware,  BulbState? state,  String? alias,  bool isOnline,  String? lastSeenIp,  DateTime? lastSeen,  int kelvinMin,  int kelvinMax,  BulbClass bulbClass)?  $default,) {final _that = this;
 switch (_that) {
 case _Bulb() when $default != null:
-return $default(_that.ip,_that.port,_that.mac,_that.model,_that.firmware,_that.state,_that.alias,_that.isOnline,_that.lastSeenIp,_that.lastSeen);case _:
+return $default(_that.ip,_that.port,_that.mac,_that.model,_that.firmware,_that.state,_that.alias,_that.isOnline,_that.lastSeenIp,_that.lastSeen,_that.kelvinMin,_that.kelvinMax,_that.bulbClass);case _:
   return null;
 
 }
@@ -227,7 +230,7 @@ return $default(_that.ip,_that.port,_that.mac,_that.model,_that.firmware,_that.s
 
 
 class _Bulb extends Bulb {
-  const _Bulb({required this.ip, this.port = 38899, this.mac, this.model, this.firmware, this.state, this.alias, this.isOnline = true, this.lastSeenIp, this.lastSeen}): super._();
+  const _Bulb({required this.ip, this.port = 38899, this.mac, this.model, this.firmware, this.state, this.alias, this.isOnline = true, this.lastSeenIp, this.lastSeen, this.kelvinMin = 2200, this.kelvinMax = 6500, this.bulbClass = BulbClass.rgb}): super._();
   
 
 @override final  InternetAddress ip;
@@ -240,6 +243,9 @@ class _Bulb extends Bulb {
 @override@JsonKey() final  bool isOnline;
 @override final  String? lastSeenIp;
 @override final  DateTime? lastSeen;
+@override@JsonKey() final  int kelvinMin;
+@override@JsonKey() final  int kelvinMax;
+@override@JsonKey() final  BulbClass bulbClass;
 
 /// Create a copy of Bulb
 /// with the given fields replaced by the non-null parameter values.
@@ -251,16 +257,16 @@ _$BulbCopyWith<_Bulb> get copyWith => __$BulbCopyWithImpl<_Bulb>(this, _$identit
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Bulb&&(identical(other.ip, ip) || other.ip == ip)&&(identical(other.port, port) || other.port == port)&&(identical(other.mac, mac) || other.mac == mac)&&(identical(other.model, model) || other.model == model)&&(identical(other.firmware, firmware) || other.firmware == firmware)&&(identical(other.state, state) || other.state == state)&&(identical(other.alias, alias) || other.alias == alias)&&(identical(other.isOnline, isOnline) || other.isOnline == isOnline)&&(identical(other.lastSeenIp, lastSeenIp) || other.lastSeenIp == lastSeenIp)&&(identical(other.lastSeen, lastSeen) || other.lastSeen == lastSeen));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Bulb&&(identical(other.ip, ip) || other.ip == ip)&&(identical(other.port, port) || other.port == port)&&(identical(other.mac, mac) || other.mac == mac)&&(identical(other.model, model) || other.model == model)&&(identical(other.firmware, firmware) || other.firmware == firmware)&&(identical(other.state, state) || other.state == state)&&(identical(other.alias, alias) || other.alias == alias)&&(identical(other.isOnline, isOnline) || other.isOnline == isOnline)&&(identical(other.lastSeenIp, lastSeenIp) || other.lastSeenIp == lastSeenIp)&&(identical(other.lastSeen, lastSeen) || other.lastSeen == lastSeen)&&(identical(other.kelvinMin, kelvinMin) || other.kelvinMin == kelvinMin)&&(identical(other.kelvinMax, kelvinMax) || other.kelvinMax == kelvinMax)&&(identical(other.bulbClass, bulbClass) || other.bulbClass == bulbClass));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,ip,port,mac,model,firmware,state,alias,isOnline,lastSeenIp,lastSeen);
+int get hashCode => Object.hash(runtimeType,ip,port,mac,model,firmware,state,alias,isOnline,lastSeenIp,lastSeen,kelvinMin,kelvinMax,bulbClass);
 
 @override
 String toString() {
-  return 'Bulb(ip: $ip, port: $port, mac: $mac, model: $model, firmware: $firmware, state: $state, alias: $alias, isOnline: $isOnline, lastSeenIp: $lastSeenIp, lastSeen: $lastSeen)';
+  return 'Bulb(ip: $ip, port: $port, mac: $mac, model: $model, firmware: $firmware, state: $state, alias: $alias, isOnline: $isOnline, lastSeenIp: $lastSeenIp, lastSeen: $lastSeen, kelvinMin: $kelvinMin, kelvinMax: $kelvinMax, bulbClass: $bulbClass)';
 }
 
 
@@ -271,7 +277,7 @@ abstract mixin class _$BulbCopyWith<$Res> implements $BulbCopyWith<$Res> {
   factory _$BulbCopyWith(_Bulb value, $Res Function(_Bulb) _then) = __$BulbCopyWithImpl;
 @override @useResult
 $Res call({
- InternetAddress ip, int port, String? mac, String? model, String? firmware, BulbState? state, String? alias, bool isOnline, String? lastSeenIp, DateTime? lastSeen
+ InternetAddress ip, int port, String? mac, String? model, String? firmware, BulbState? state, String? alias, bool isOnline, String? lastSeenIp, DateTime? lastSeen, int kelvinMin, int kelvinMax, BulbClass bulbClass
 });
 
 
@@ -288,7 +294,7 @@ class __$BulbCopyWithImpl<$Res>
 
 /// Create a copy of Bulb
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? ip = null,Object? port = null,Object? mac = freezed,Object? model = freezed,Object? firmware = freezed,Object? state = freezed,Object? alias = freezed,Object? isOnline = null,Object? lastSeenIp = freezed,Object? lastSeen = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? ip = null,Object? port = null,Object? mac = freezed,Object? model = freezed,Object? firmware = freezed,Object? state = freezed,Object? alias = freezed,Object? isOnline = null,Object? lastSeenIp = freezed,Object? lastSeen = freezed,Object? kelvinMin = null,Object? kelvinMax = null,Object? bulbClass = null,}) {
   return _then(_Bulb(
 ip: null == ip ? _self.ip : ip // ignore: cast_nullable_to_non_nullable
 as InternetAddress,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable
@@ -300,7 +306,10 @@ as BulbState?,alias: freezed == alias ? _self.alias : alias // ignore: cast_null
 as String?,isOnline: null == isOnline ? _self.isOnline : isOnline // ignore: cast_nullable_to_non_nullable
 as bool,lastSeenIp: freezed == lastSeenIp ? _self.lastSeenIp : lastSeenIp // ignore: cast_nullable_to_non_nullable
 as String?,lastSeen: freezed == lastSeen ? _self.lastSeen : lastSeen // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as DateTime?,kelvinMin: null == kelvinMin ? _self.kelvinMin : kelvinMin // ignore: cast_nullable_to_non_nullable
+as int,kelvinMax: null == kelvinMax ? _self.kelvinMax : kelvinMax // ignore: cast_nullable_to_non_nullable
+as int,bulbClass: null == bulbClass ? _self.bulbClass : bulbClass // ignore: cast_nullable_to_non_nullable
+as BulbClass,
   ));
 }
 

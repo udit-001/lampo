@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 import '../../../data/models/bulb.dart';
 import '../../../data/models/bulb_state.dart';
 import '../../../data/repositories/bulb_repository.dart';
+import '../../../data/services/connectivity_service.dart';
+import '../../../domain/models/bulb_type.dart';
+import '../../../domain/models/scene.dart';
 
 enum BulbMode { white, color, scene }
 
@@ -28,6 +31,22 @@ class BulbDetailViewModel extends ChangeNotifier {
   BulbMode get selectedMode => _selectedMode;
   bool get isUserInteracting => _isUserInteracting;
   bool get isLoading => _isLoading;
+  bool get controlsDisabled => _repository.connectionType != ConnectionType.wifi;
+
+  BulbFeatures get _features => BulbTypeDetector.featuresFor(bulb?.bulbClass ?? BulbClass.rgb);
+
+  List<BulbMode> get availableModes {
+    final modes = <BulbMode>[];
+    if (_features.colorTemp) modes.add(BulbMode.white);
+    if (_features.color) modes.add(BulbMode.color);
+    if (_features.effect && WizScene.scenesForClass(bulb?.bulbClass ?? BulbClass.rgb).isNotEmpty) {
+      modes.add(BulbMode.scene);
+    }
+    return modes;
+  }
+
+  bool get showBrightness => _features.brightness;
+  bool get showModeToggle => availableModes.length >= 2;
 
   Future<void> refreshState() async {
     final b = bulb;
@@ -44,12 +63,21 @@ class BulbDetailViewModel extends ChangeNotifier {
 
   BulbMode _inferMode() {
     final s = state;
-    if (s.r != null && s.g != null && s.b != null) return BulbMode.color;
-    if (s.sceneId != null && s.sceneId! > 0) return BulbMode.scene;
-    return BulbMode.white;
+    final modes = availableModes;
+    if (s.sceneId != null && s.sceneId! > 0 && modes.contains(BulbMode.scene)) {
+      return BulbMode.scene;
+    }
+    if (s.r != null && s.g != null && s.b != null && modes.contains(BulbMode.color)) {
+      return BulbMode.color;
+    }
+    if (modes.contains(BulbMode.white)) return BulbMode.white;
+    if (modes.contains(BulbMode.scene)) return BulbMode.scene;
+    if (modes.contains(BulbMode.color)) return BulbMode.color;
+    return modes.isNotEmpty ? modes.first : BulbMode.white;
   }
 
   void setMode(BulbMode mode) {
+    if (!availableModes.contains(mode)) return;
     _selectedMode = mode;
     notifyListeners();
   }
@@ -71,6 +99,7 @@ class BulbDetailViewModel extends ChangeNotifier {
   void setWhiteTemp(int kelvin) {
     final b = bulb;
     if (b == null) return;
+    if (!availableModes.contains(BulbMode.white)) return;
     _repository.setWhiteTemp(b, kelvin);
     _selectedMode = BulbMode.white;
     notifyListeners();
@@ -79,6 +108,7 @@ class BulbDetailViewModel extends ChangeNotifier {
   void setColor(int r, int g, int blue) {
     final b = bulb;
     if (b == null) return;
+    if (!availableModes.contains(BulbMode.color)) return;
     _repository.setColor(b, r, g, blue);
     _selectedMode = BulbMode.color;
     notifyListeners();
@@ -87,6 +117,7 @@ class BulbDetailViewModel extends ChangeNotifier {
   void setScene(int sceneId) {
     final b = bulb;
     if (b == null) return;
+    if (!availableModes.contains(BulbMode.scene)) return;
     _repository.setScene(b, sceneId);
     _selectedMode = BulbMode.scene;
     notifyListeners();
@@ -123,6 +154,9 @@ class BulbDetailViewModel extends ChangeNotifier {
 
   void _onRepositoryChanged() {
     if (!_isUserInteracting) {
+      if (!availableModes.contains(_selectedMode)) {
+        _selectedMode = _inferMode();
+      }
       notifyListeners();
     }
   }

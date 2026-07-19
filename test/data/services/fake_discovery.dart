@@ -5,11 +5,20 @@ import 'package:lampo/data/services/fake_wiz_protocol.dart';
 class FakeDiscovery extends Discovery {
   final List<Bulb> discoverResult;
   final List<Bulb> scanSubnetResult;
+  bool clearCacheCalled = false;
+  int clearCacheCallCount = 0;
 
   FakeDiscovery({
     this.discoverResult = const [],
     this.scanSubnetResult = const [],
   }) : super(FakeWizProtocol());
+
+  @override
+  void clearCache() {
+    clearCacheCalled = true;
+    clearCacheCallCount++;
+    super.clearCache();
+  }
 
   @override
   Future<List<Bulb>> discover({

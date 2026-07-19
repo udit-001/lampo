@@ -90,6 +90,17 @@ class WizProtocolImpl implements WizProtocol {
   }
 
   @override
+  Future<Map<String, dynamic>?> getModelConfig(InternetAddress ip, {int port = wizPort}) async {
+    final result = await _sendAndWait(
+      {'method': 'getModelConfig', 'params': {}},
+      ip,
+      port: port,
+    );
+    if (result == null || result['result'] == null) return null;
+    return result['result'] as Map<String, dynamic>;
+  }
+
+  @override
   void register(InternetAddress broadcastIp, {int port = wizPort}) {
     _send({
       'method': 'registration',

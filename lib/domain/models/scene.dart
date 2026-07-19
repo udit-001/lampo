@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
+import '../../domain/models/bulb_type.dart';
+
 enum SceneCategory { everyday, mood, dynamic, seasonal, nature, utility }
 
 class WizScene {
@@ -44,6 +46,7 @@ class WizScene {
     WizScene(id: 23, name: 'Deep dive', icon: LucideIcons.cloud_moon, category: SceneCategory.dynamic, isDynamic: true),
     WizScene(id: 24, name: 'Jungle', icon: LucideIcons.leafy_green, category: SceneCategory.dynamic, isDynamic: true),
     WizScene(id: 25, name: 'Mojito', icon: LucideIcons.glass_water, category: SceneCategory.dynamic, isDynamic: true),
+    WizScene(id: 26, name: 'Club', icon: LucideIcons.disc_3, category: SceneCategory.dynamic, isDynamic: true),
     WizScene(id: 27, name: 'Christmas', icon: LucideIcons.tree_pine, category: SceneCategory.seasonal, isDynamic: true),
     WizScene(id: 28, name: 'Halloween', icon: LucideIcons.ghost, category: SceneCategory.seasonal, isDynamic: true),
     WizScene(id: 29, name: 'Candlelight', icon: LucideIcons.flame, category: SceneCategory.nature, isDynamic: true),
@@ -53,6 +56,8 @@ class WizScene {
     WizScene(id: 33, name: 'Diwali', icon: LucideIcons.sparkles, category: SceneCategory.seasonal, isDynamic: true),
     WizScene(id: 34, name: 'White', icon: LucideIcons.lightbulb, category: SceneCategory.mood),
     WizScene(id: 35, name: 'Alarm', icon: LucideIcons.alarm_clock, category: SceneCategory.utility),
+    WizScene(id: 36, name: 'Snowy sky', icon: LucideIcons.cloud_snow, category: SceneCategory.seasonal, isDynamic: true),
+    WizScene(id: 40, name: 'Dim-to-warm', icon: LucideIcons.thermometer_sun, category: SceneCategory.everyday),
     WizScene(id: 1000, name: 'Rhythm', icon: LucideIcons.music, category: SceneCategory.utility),
   ];
 
@@ -69,4 +74,27 @@ class WizScene {
   }
 
   static List<WizScene> get dynamicScenes => all.where((s) => s.isDynamic).toList();
+
+  static const List<int> _twSceneIds = [
+    6, 9, 10, 11, 12, 13, 14, 15, 16, 18, 29, 30, 31, 32, 33, 35, 40,
+  ];
+
+  static const List<int> _dwSceneIds = [
+    9, 10, 14, 29, 31, 32, 34, 35,
+  ];
+
+  static List<WizScene> scenesForClass(BulbClass bulbClass) {
+    switch (bulbClass) {
+      case BulbClass.rgb:
+      case BulbClass.fanTw:
+        return all;
+      case BulbClass.tw:
+        return all.where((s) => _twSceneIds.contains(s.id)).toList();
+      case BulbClass.dw:
+      case BulbClass.fanDim:
+        return all.where((s) => _dwSceneIds.contains(s.id)).toList();
+      case BulbClass.socket:
+        return [];
+    }
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../data/models/bulb.dart';
 import '../../../data/repositories/bulb_repository.dart';
+import '../../../data/services/connectivity_service.dart';
 import '../../../data/services/wifi_band_service.dart';
 
 class BulbViewModel extends ChangeNotifier {
@@ -21,19 +22,24 @@ class BulbViewModel extends ChangeNotifier {
 
   List<Bulb> get bulbs => _repository.bulbs;
   bool get isScanning => _repository.isScanning;
+  bool get isReconnecting => _repository.isReconnecting;
   bool get isInitializing => _isInitializing;
   String? get scanError => _scanError;
   WifiBand get wifiBand => _wifiBand;
+  bool get isOnCellular => _repository.connectionType == ConnectionType.cellular;
+  bool get isOffline => _repository.connectionType == ConnectionType.none;
 
   Future<void> init() async {
     await _repository.init();
     _isInitializing = false;
     notifyListeners();
 
-    if (_repository.bulbs.isEmpty) {
-      await scan();
-    } else {
-      _repository.startupFetch();
+    if (_repository.connectionType == ConnectionType.wifi) {
+      if (_repository.bulbs.isEmpty) {
+        await scan();
+      } else {
+        _repository.startupFetch();
+      }
     }
   }
 
@@ -48,6 +54,11 @@ class BulbViewModel extends ChangeNotifier {
     } catch (e) {
       _scanError = e.toString();
     }
+    notifyListeners();
+  }
+
+  Future<void> refresh() async {
+    await _repository.refreshAll();
     notifyListeners();
   }
 

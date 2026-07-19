@@ -7,17 +7,20 @@ import 'package:lampo/data/repositories/bulb_repository.dart';
 import 'package:lampo/data/services/fake_wiz_protocol.dart';
 
 import '../services/fake_bulb_store.dart';
+import '../services/fake_connectivity_service.dart';
 import '../services/fake_discovery.dart';
 
 void main() {
   late FakeWizProtocol proto;
   late FakeBulbStore store;
   late FakeDiscovery discovery;
+  late FakeConnectivityService connectivity;
   late BulbRepository repo;
 
   setUp(() async {
     proto = FakeWizProtocol();
     store = FakeBulbStore();
+    connectivity = FakeConnectivityService();
     discovery = FakeDiscovery(
       discoverResult: [
         Bulb(
@@ -27,7 +30,7 @@ void main() {
         ),
       ],
     );
-    repo = BulbRepository(proto: proto, discovery: discovery, store: store);
+    repo = BulbRepository(proto: proto, discovery: discovery, store: store, connectivity: connectivity);
     await repo.init();
     await repo.scan();
   });

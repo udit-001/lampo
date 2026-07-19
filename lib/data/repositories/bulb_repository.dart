@@ -6,14 +6,20 @@ import '../models/bulb_command.dart';
 import '../models/bulb_event.dart';
 import '../models/bulb_state.dart';
 import '../services/bulb_store.dart';
+import '../services/connectivity_service.dart';
 import '../services/discovery.dart';
 import '../services/wiz_protocol.dart';
+import '../../domain/models/bulb_limits.dart';
+import '../../domain/models/bulb_type.dart';
+import '../../domain/models/rgbcw_converter.dart';
 
 class BulbRepository {
   final WizProtocol _proto;
   final Discovery _discovery;
   final BulbStore _store;
+  final ConnectivityService _connectivity;
   StreamSubscription<BulbEvent>? _eventSub;
+  StreamSubscription<ConnectionType>? _connectivitySub;
   Timer? _pollTimer;
   List<Bulb> _bulbs = [];
   bool _isScanning = false;
@@ -22,14 +28,26 @@ class BulbRepository {
   final Set<String> _commandFailed = {};
   final Set<String> _interactingBulbIds = {};
   final List<void Function()> _listeners = [];
+  ConnectionType _connectionType = ConnectionType.wifi;
+  final Duration _backgroundThreshold;
+  final Duration _reconnectDelay;
+  DateTime? _backgroundedAt;
+  bool _isReconnecting = false;
+  Timer? _reconnectDebounce;
 
   BulbRepository({
     required WizProtocol proto,
     required Discovery discovery,
     required BulbStore store,
+    required ConnectivityService connectivity,
+    Duration backgroundThreshold = const Duration(minutes: 2),
+    Duration reconnectDelay = const Duration(seconds: 3),
   })  : _proto = proto,
         _discovery = discovery,
-        _store = store;
+        _store = store,
+        _connectivity = connectivity,
+        _backgroundThreshold = backgroundThreshold,
+        _reconnectDelay = reconnectDelay;
 
   void addListener(void Function() callback) {
     _listeners.add(callback);
@@ -45,10 +63,26 @@ class BulbRepository {
     }
   }
 
+  void _onConnectivityChanged(ConnectionType type) {
+    _connectionType = type;
+    _notifyListeners();
+
+    if (type == ConnectionType.wifi) {
+      _reconnectDebounce?.cancel();
+      _reconnectDebounce = Timer(_reconnectDelay, _reconnect);
+    } else {
+      _reconnectDebounce?.cancel();
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    }
+  }
+
   bool _initialized = false;
 
   List<Bulb> get bulbs => _bulbs;
   bool get isScanning => _isScanning;
+  bool get isReconnecting => _isReconnecting;
+  ConnectionType get connectionType => _connectionType;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -58,6 +92,8 @@ class BulbRepository {
         .map((b) => b.copyWith(isOnline: false))
         .toList();
     _eventSub = _proto.events.listen(_handleEvent);
+    _connectionType = await _connectivity.checkConnectivity();
+    _connectivitySub = _connectivity.onConnectivityChanged.listen(_onConnectivityChanged);
     _notifyListeners();
   }
 
@@ -71,14 +107,15 @@ class BulbRepository {
           const Duration(seconds: 3),
         );
         if (state != null) {
-          onlineBulbs.add(bulb.copyWith(
+          final updated = bulb.copyWith(
             isOnline: true,
             state: BulbState.fromMap(
               _stateToMap(state),
               previous: bulb.state,
             ),
             lastSeen: DateTime.now(),
-          ));
+          );
+          onlineBulbs.add(await _fetchKelvinRange(updated));
         } else {
           onlineBulbs.add(bulb.copyWith(isOnline: false));
         }
@@ -157,6 +194,27 @@ class BulbRepository {
     };
   }
 
+  Future<Bulb> _fetchKelvinRange(Bulb bulb) async {
+    var updated = bulb;
+    try {
+      final config = await _proto.getModelConfig(bulb.ip).timeout(
+        const Duration(seconds: 2),
+      );
+      if (config != null) {
+        final cctRange = config['cctRange'];
+        if (cctRange is List && cctRange.length >= 4) {
+          final min = (cctRange[0] as num).toInt();
+          final max = (cctRange[3] as num).toInt();
+          if (min > 0 && max > min) {
+            updated = updated.copyWith(kelvinMin: min, kelvinMax: max);
+          }
+        }
+      }
+    } catch (_) {}
+    final bulbClass = BulbTypeDetector.detectFromModuleName(updated.model);
+    return updated.copyWith(bulbClass: bulbClass);
+  }
+
   Future<void> scan() async {
     if (_isScanning) return;
     _isScanning = true;
@@ -181,16 +239,19 @@ class BulbRepository {
         if (state != null) {
           final idx = _bulbs.indexWhere((b) => b.id == bulb.id);
           if (idx != -1) {
-            _bulbs[idx] = _bulbs[idx].copyWith(
+            final withState = _bulbs[idx].copyWith(
               state: BulbState.fromMap(
                 _stateToMap(state),
                 previous: _bulbs[idx].state,
               ),
             );
+            final withKelvin = await _fetchKelvinRange(withState);
+            _bulbs[idx] = withKelvin;
             _notifyListeners();
           }
         }
       }
+      await _store.saveAll(_bulbs.where((b) => b.mac != null));
       _startPolling();
     } finally {
       _isScanning = false;
@@ -236,28 +297,66 @@ class BulbRepository {
     _bulbs = merged;
   }
 
-  void _startPolling() {
-    _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
-      for (final bulb in _bulbs.where((b) => b.isOnline)) {
-        if (_interactingBulbIds.contains(bulb.id)) continue;
-        final state = await _proto.getPilotState(bulb);
-        if (state != null) {
-          final idx = _bulbs.indexWhere((b) => b.id == bulb.id);
-          if (idx != -1) {
-            _bulbs[idx] = _bulbs[idx].copyWith(
-              state: BulbState.fromMap(
-                _stateToMap(state),
-                previous: _bulbs[idx].state,
-              ),
-              lastSeen: DateTime.now(),
-            );
-            _checkCommandFailed(_bulbs[idx], _bulbs[idx].state ?? const BulbState());
-            _notifyListeners();
-          }
+  Future<void> _pollAllBulbs() async {
+    for (final bulb in _bulbs.where((b) => b.isOnline)) {
+      if (_interactingBulbIds.contains(bulb.id)) continue;
+      final state = await _proto.getPilotState(bulb);
+      if (state != null) {
+        final idx = _bulbs.indexWhere((b) => b.id == bulb.id);
+        if (idx != -1) {
+          _bulbs[idx] = _bulbs[idx].copyWith(
+            state: BulbState.fromMap(
+              _stateToMap(state),
+              previous: _bulbs[idx].state,
+            ),
+            lastSeen: DateTime.now(),
+          );
+          _checkCommandFailed(_bulbs[idx], _bulbs[idx].state ?? const BulbState());
+          _notifyListeners();
         }
       }
-    });
+    }
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _pollAllBulbs());
+  }
+
+  void onAppPaused() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _interactingBulbIds.clear();
+    _backgroundedAt = DateTime.now();
+  }
+
+  Future<void> onAppResumed() async {
+    if (_backgroundedAt == null) return;
+    final elapsed = DateTime.now().difference(_backgroundedAt!);
+    _backgroundedAt = null;
+
+    if (elapsed < _backgroundThreshold) {
+      await _quickReconnect();
+    } else {
+      await _reconnect();
+    }
+  }
+
+  Future<void> _quickReconnect() async {
+    for (final bulb in _bulbs.where((b) => b.isOnline)) {
+      _proto.register(bulb.ip);
+    }
+    _startPolling();
+    await _pollAllBulbs();
+  }
+
+  Future<void> _reconnect() async {
+    _isReconnecting = true;
+    _notifyListeners();
+    _discovery.clearCache();
+    await startupFetch();
+    _isReconnecting = false;
+    _notifyListeners();
   }
 
   BulbState getBulbState(Bulb bulb) {
@@ -272,6 +371,7 @@ class BulbRepository {
       final idx = _bulbs.indexWhere((b) => b.id == bulb.id);
       if (idx != -1 && !_interactingBulbIds.contains(bulb.id)) {
         _bulbs[idx] = _bulbs[idx].copyWith(
+          isOnline: true,
           state: BulbState.fromMap(
             _stateToMap(state),
             previous: _bulbs[idx].state,
@@ -283,6 +383,35 @@ class BulbRepository {
       }
     }
     return state;
+  }
+
+  Future<void> refreshAll() async {
+    for (final bulb in _bulbs) {
+      if (_interactingBulbIds.contains(bulb.id)) continue;
+      final idx = _bulbs.indexWhere((b) => b.id == bulb.id);
+      if (idx == -1) continue;
+      try {
+        final state = await _proto.getPilotState(bulb).timeout(
+          const Duration(seconds: 3),
+        );
+        if (state != null) {
+          _bulbs[idx] = _bulbs[idx].copyWith(
+            isOnline: true,
+            state: BulbState.fromMap(
+              _stateToMap(state),
+              previous: _bulbs[idx].state,
+            ),
+            lastSeen: DateTime.now(),
+          );
+        } else {
+          _bulbs[idx] = _bulbs[idx].copyWith(isOnline: false);
+        }
+        _checkCommandFailed(_bulbs[idx], _bulbs[idx].state ?? const BulbState());
+      } catch (_) {
+        _bulbs[idx] = _bulbs[idx].copyWith(isOnline: false);
+      }
+      _notifyListeners();
+    }
   }
 
   Bulb? getBulbById(String id) {
@@ -347,8 +476,9 @@ class BulbRepository {
   }
 
   void setBrightness(Bulb bulb, int percent) {
+    final clamped = percent.clamp(BulbLimits.minBrightness, BulbLimits.maxBrightness);
     final current = getBulbState(bulb);
-    final command = BulbCommand(dimming: percent);
+    final command = BulbCommand(dimming: clamped);
     _proto.setPilot(bulb, command);
     _trackCommand(bulb, command);
     final idx = _bulbs.indexWhere((b) => b.id == bulb.id);
@@ -361,8 +491,11 @@ class BulbRepository {
   }
 
   void setWhiteTemp(Bulb bulb, int kelvin) {
+    final minK = bulb.kelvinMin;
+    final maxK = bulb.kelvinMax;
+    final clamped = kelvin.clamp(minK, maxK);
     final current = getBulbState(bulb);
-    final command = BulbCommand(temp: kelvin);
+    final command = BulbCommand(temp: clamped);
     _proto.setPilot(bulb, command);
     _trackCommand(bulb, command);
     final idx = _bulbs.indexWhere((b) => b.id == bulb.id);
@@ -372,7 +505,7 @@ class BulbRepository {
           on: current.on,
           c: current.c,
           w: current.w,
-          temp: kelvin,
+          temp: clamped,
           dimming: current.dimming,
           speed: current.speed,
           rssi: current.rssi,
@@ -383,8 +516,12 @@ class BulbRepository {
   }
 
   void setColor(Bulb bulb, int r, int g, int b) {
+    final cr = r.clamp(BulbLimits.minChannel, BulbLimits.maxChannel);
+    final cg = g.clamp(BulbLimits.minChannel, BulbLimits.maxChannel);
+    final cb = b.clamp(BulbLimits.minChannel, BulbLimits.maxChannel);
+    final cw = RgbcwConverter.rgb2rgbcw(cr, cg, cb);
     final current = getBulbState(bulb);
-    final command = BulbCommand(r: r, g: g, b: b);
+    final command = BulbCommand(r: cw.r, g: cw.g, b: cw.b, w: cw.warmWhite);
     _proto.setPilot(bulb, command);
     _trackCommand(bulb, command);
     final idx = _bulbs.indexWhere((b) => b.id == bulb.id);
@@ -392,11 +529,10 @@ class BulbRepository {
       _bulbs[idx] = _bulbs[idx].copyWith(
         state: BulbState(
           on: current.on,
-          r: r,
-          g: g,
-          b: b,
-          c: current.c,
-          w: current.w,
+          r: cw.r,
+          g: cw.g,
+          b: cw.b,
+          w: cw.warmWhite,
           dimming: current.dimming,
           speed: current.speed,
           rssi: current.rssi,
@@ -407,6 +543,7 @@ class BulbRepository {
   }
 
   void setScene(Bulb bulb, int sceneId) {
+    if (!BulbLimits.isValidSceneId(sceneId)) return;
     final current = getBulbState(bulb);
     final command = BulbCommand(sceneId: sceneId);
     _proto.setPilot(bulb, command);
@@ -429,8 +566,9 @@ class BulbRepository {
   }
 
   void setSpeed(Bulb bulb, int speed) {
+    final clamped = speed.clamp(BulbLimits.minSpeed, BulbLimits.maxSpeed);
     final current = getBulbState(bulb);
-    final command = BulbCommand(speed: speed);
+    final command = BulbCommand(speed: clamped);
     _proto.setPilot(bulb, command);
     _trackCommand(bulb, command);
     final idx = _bulbs.indexWhere((b) => b.id == bulb.id);
@@ -462,7 +600,9 @@ class BulbRepository {
 
   void dispose() {
     _pollTimer?.cancel();
+    _reconnectDebounce?.cancel();
     _eventSub?.cancel();
+    _connectivitySub?.cancel();
     _proto.close();
   }
 }

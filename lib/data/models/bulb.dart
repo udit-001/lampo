@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../domain/models/bulb_type.dart';
 import 'bulb_state.dart';
 
 part 'bulb.freezed.dart';
@@ -21,6 +22,9 @@ abstract class Bulb with _$Bulb {
     @Default(true) bool isOnline,
     String? lastSeenIp,
     DateTime? lastSeen,
+    @Default(2200) int kelvinMin,
+    @Default(6500) int kelvinMax,
+    @Default(BulbClass.rgb) BulbClass bulbClass,
   }) = _Bulb;
 
   String get id => mac ?? ip.address;
@@ -41,6 +45,9 @@ abstract class Bulb with _$Bulb {
         'alias': alias,
         'ip': lastSeenIp ?? ip.address,
         'port': port,
+        'kelvinMin': kelvinMin,
+        'kelvinMax': kelvinMax,
+        'bulbClass': bulbClass.name,
         if (lastSeen != null) 'lastSeen': lastSeen!.toIso8601String(),
       };
 
@@ -57,6 +64,12 @@ abstract class Bulb with _$Bulb {
       isOnline: false,
       lastSeenIp: ipStr,
       lastSeen: lastSeenStr != null ? DateTime.parse(lastSeenStr) : null,
+      kelvinMin: json['kelvinMin'] as int? ?? 2200,
+      kelvinMax: json['kelvinMax'] as int? ?? 6500,
+      bulbClass: BulbClass.values.firstWhere(
+        (c) => c.name == json['bulbClass'],
+        orElse: () => BulbClass.rgb,
+      ),
     );
   }
 }

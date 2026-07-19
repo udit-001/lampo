@@ -44,6 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Issue tracker config
+.lific.json
+
 # Internal working files
 .handoffs/
 .agents/
