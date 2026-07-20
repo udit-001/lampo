@@ -38,6 +38,8 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
   late double _speed;
   late Color _color;
   Timer? _colorDebounce;
+  bool _colorTouched = false;
+  BulbMode? _lastMode;
 
   @override
   void initState() {
@@ -279,7 +281,12 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
 
   Widget _buildModeControls(BuildContext context, ThemeData theme, bool isOn, BulbState state) {
     if (_viewModel.availableModes.isEmpty) return const SizedBox.shrink();
-    switch (_viewModel.selectedMode) {
+    final mode = _viewModel.selectedMode;
+    if (mode != _lastMode) {
+      _lastMode = mode;
+      if (mode == BulbMode.color) _colorTouched = false;
+    }
+    switch (mode) {
       case BulbMode.white:
         return _buildWhiteMode(context, theme, isOn, state);
       case BulbMode.color:
@@ -357,7 +364,7 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
   }
 
   Widget _buildColorMode(BuildContext context, ThemeData theme, bool isOn, BulbState state) {
-    if (!_viewModel.isUserInteracting) {
+    if (!_viewModel.isUserInteracting && !_colorTouched) {
       _color = BulbColors.fromState(state, fallback: Colors.white);
     }
 
@@ -375,7 +382,9 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
               child: ColorPicker(
                 pickerColor: _color,
                 onColorChanged: (color) {
+                  _colorTouched = true;
                   setState(() => _color = color);
+                  _viewModel.setSliderDragging(true);
                   _colorDebounce?.cancel();
                   _colorDebounce = Timer(const Duration(milliseconds: 300), () {
                     _viewModel.setColor(
@@ -383,6 +392,7 @@ class _BulbDetailScreenState extends State<BulbDetailScreen> {
                       (color.g * 255).round().clamp(BulbLimits.minChannel, BulbLimits.maxChannel),
                       (color.b * 255).round().clamp(BulbLimits.minChannel, BulbLimits.maxChannel),
                     );
+                    _viewModel.setSliderDragging(false);
                   });
                 },
                 enableAlpha: false,
