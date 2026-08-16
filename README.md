@@ -9,14 +9,9 @@ doesn't.
 
 ## Install
 
-Grab the latest APK from [releases](https://github.com/udit-001/lampo/releases)
-and install it on your Android phone:
-
-1. Download `app-release.apk` from the latest release
+1. Download the [latest APK](https://github.com/udit-001/lampo/releases/latest/download/app-release.apk)
 2. Open it on your phone (allow "install from unknown sources" if asked)
 3. Connect to the same WiFi as your bulbs
-
-**[All releases](https://github.com/udit-001/lampo/releases)**
 
 ## What it does
 
