@@ -11,14 +11,14 @@ lib/
 ├── data/
 │   ├── models/         # Bulb, BulbState, BulbCommand, BulbInfo, BulbEvent (freezed/sealed)
 │   ├── repositories/   # BulbRepository — owns scan, reconcile, poll, command tracking
-│   └── services/       # WizProtocol (abstract), WizProtocolImpl, FakeWizProtocol, Discovery, BulbStore
+│   └── services/       # WizProtocol (abstract), WizProtocolImpl, FakeWizProtocol, Discovery, BulbStore, WifiBandService
 ├── domain/
-│   └── models/         # WizScene, SceneCategory
+│   └── models/         # scene (WizScene, SceneCategory), bulb_type, bulb_limits, rgbcw_converter
 └── ui/
-    ├── core/           # BulbColorSwatch, PreviewBox, AnimatedBadge, StaticBadge
+    ├── core/           # BulbColorSwatch, PreviewBox, SectionLabel, bulb_colors
     └── features/
         ├── home/       # HomeScreen, HomeViewModel
-        └── bulb_detail/ # BulbDetailScreen, BulbDetailViewModel, ScenePickerScreen, DeviceInfoSheet
+        └── bulb_detail/ # BulbDetailScreen, BulbDetailViewModel, ScenePickerScreen, DeviceInfoScreen
 ```
 
 - **Data layer**: `BulbRepository` (no ChangeNotifier) — owns WizProtocol, Discovery, BulbStore, polling, reconciliation. Notifies via a listener list (`addListener`/`removeListener`/`_notifyListeners`) so multiple ViewModels receive updates simultaneously.
@@ -52,7 +52,7 @@ adb push build/app/outputs/flutter-apk/app-release.apk /sdcard/Download/lampo.ap
 ## Testing
 
 - Hand-written fakes (FakeWizProtocol, FakeBulbStore, FakeDiscovery) — never mockito.
-- Fakes live in `test/data/services/`, imported via relative paths.
+- Fakes live in `test/data/services/` (also `fake_wifi_band_service.dart`), imported via relative paths.
 - Test structure mirrors `lib/`.
 - FakeWizProtocol tracks `sentCommands` and `registeredIps` for assertions.
 - Broadcast streams are async by default — tests use `await Future.delayed(Duration.zero)` after `emitEvent()`.
